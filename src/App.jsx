@@ -142,7 +142,7 @@ async function generateLyrics(moodData, songFileName) {
     return {
       ...lyrics,
       title: cleanName || `[DEMO] ${lyrics.title}`,
-      note: !cleanName ? "Demo mode — dodaj API ključ za prave lyrics" : "Demo mode",
+      note: !cleanName ? "Demo mode" : "Demo mode",
     };
   }
 
@@ -576,9 +576,171 @@ const MODES = [
   { key: "galaxy", name: "Galaxy", icon: "✦", draw: drawGalaxy },
 ];
 
+// ─── Translations ────────────────────────────────────────
+const LANGS = {
+  en: {
+    flag: "🇬🇧", name: "English",
+    chooseSource: "Choose audio source",
+    chooseSourceSub: "Upload music to visualize",
+    uploadMusic: "Upload music",
+    pause: "Pause", resume: "Play", stop: "Stop",
+    gain: "GAIN", mood: "MOOD",
+    searchLyrics: "Lyrics", searching: "Searching...",
+    generateAI: "AI Lyrics", generating: "Generating...",
+    showLyrics: "Show lyrics", openPanel: "Open panel", hideLyrics: "Hide lyrics",
+    synced: "SYNCED",
+    tabSearch: "🔍 Search", tabAI: "✍ AI", tabPaste: "📋 Paste",
+    pasteLyrics: "Paste song lyrics",
+    pasteHint: "Paste lyrics here...\n\nFind lyrics at:\n• Genius.com\n• AZLyrics.com\n• Musixmatch.com",
+    useThese: "✓ Use these lyrics",
+    searchBtn: "🔍 Search lyrics", aiBtn: "✍ AI Generate lyrics",
+    clickSearch: "Click 'Search' to find lyrics",
+    fileNameHint: "File name is used for searching",
+    clickAI: "Click 'Generate' for AI lyrics",
+    aiHint: "AI generates lyrics based on audio mood",
+    noResults: "No results",
+    noResultsHint: "Lyrics not found for this song.\n\nTry:\n• Rename file to: Artist - Song Title.mp3\n• Use 📋 Paste tab and paste lyrics manually\n• Use ✍ AI tab for generated lyrics",
+    source: "Source",
+    footer: "Built with React + Web Audio API by Pengu",
+    demoMode: "Demo mode",
+  },
+  de: {
+    flag: "🇩🇪", name: "Deutsch",
+    chooseSource: "Audioquelle wählen",
+    chooseSourceSub: "Musik hochladen zum Visualisieren",
+    uploadMusic: "Musik hochladen",
+    pause: "Pause", resume: "Abspielen", stop: "Stopp",
+    gain: "LAUTST.", mood: "STIMMUNG",
+    searchLyrics: "Lyrics", searching: "Suche...",
+    generateAI: "AI Lyrics", generating: "Generiere...",
+    showLyrics: "Lyrics anzeigen", openPanel: "Panel öffnen", hideLyrics: "Lyrics ausblenden",
+    synced: "SYNCHRON",
+    tabSearch: "🔍 Suche", tabAI: "✍ AI", tabPaste: "📋 Einfügen",
+    pasteLyrics: "Songtext einfügen",
+    pasteHint: "Text hier einfügen...\n\nSongtexte finden bei:\n• Genius.com\n• AZLyrics.com\n• Musixmatch.com",
+    useThese: "✓ Diesen Text verwenden",
+    searchBtn: "🔍 Lyrics suchen", aiBtn: "✍ AI Lyrics generieren",
+    clickSearch: "Klicke 'Suche' um Lyrics zu finden",
+    fileNameHint: "Dateiname wird für die Suche verwendet",
+    clickAI: "Klicke 'Generieren' für AI Lyrics",
+    aiHint: "AI generiert Lyrics basierend auf der Stimmung",
+    noResults: "Keine Ergebnisse",
+    noResultsHint: "Lyrics für diesen Song nicht gefunden.\n\nVersuche:\n• Datei umbenennen zu: Artist - Song Title.mp3\n• 📋 Einfügen Tab verwenden\n• ✍ AI Tab für generierte Lyrics",
+    source: "Quelle",
+    footer: "Erstellt mit React + Web Audio API von Pengu",
+    demoMode: "Demo-Modus",
+  },
+  sl: {
+    flag: "🇸🇮", name: "Slovenščina",
+    chooseSource: "Izberi vir zvoka",
+    chooseSourceSub: "Naloži glasbo za vizualizacijo",
+    uploadMusic: "Naloži glasbo",
+    pause: "Pavza", resume: "Predvajaj", stop: "Stop",
+    gain: "OJAČITEV", mood: "MOOD",
+    searchLyrics: "Lyrics", searching: "Iščem...",
+    generateAI: "AI Lyrics", generating: "Generiram...",
+    showLyrics: "Prikaži lyrics", openPanel: "Odpri panel", hideLyrics: "Skrij lyrics",
+    synced: "SINHRONIZIRANO",
+    tabSearch: "🔍 Poišči", tabAI: "✍ AI", tabPaste: "📋 Prilepi",
+    pasteLyrics: "Prilepi lyrics pesmi",
+    pasteHint: "Prilepi besedilo tukaj...\n\nLyrics najdeš na:\n• Genius.com\n• AZLyrics.com\n• Musixmatch.com",
+    useThese: "✓ Uporabi te lyrics",
+    searchBtn: "🔍 Poišči lyrics", aiBtn: "✍ AI Generiraj lyrics",
+    clickSearch: "Klikni 'Poišči' za iskanje lyrics",
+    fileNameHint: "Ime datoteke se uporabi za iskanje",
+    clickAI: "Klikni 'Generiraj' za AI lyrics",
+    aiHint: "AI generira lyrics na podlagi mooda glasbe",
+    noResults: "Ni zadetkov",
+    noResultsHint: "Lyrics za to pesem niso bili najdeni.\n\nPoskusi:\n• Preimenuj datoteko v: Artist - Song Title.mp3\n• Uporabi 📋 Prilepi tab\n• Uporabi ✍ AI tab za generirane lyrics",
+    source: "Vir",
+    footer: "Naredil Pengu z React + Web Audio API",
+    demoMode: "Demo način",
+  },
+  hr: {
+    flag: "🇭🇷", name: "Hrvatski",
+    chooseSource: "Odaberi izvor zvuka",
+    chooseSourceSub: "Učitaj glazbu za vizualizaciju",
+    uploadMusic: "Učitaj glazbu",
+    pause: "Pauza", resume: "Reproduciraj", stop: "Stop",
+    gain: "POJAČANJE", mood: "RASPOLOŽENJE",
+    searchLyrics: "Lyrics", searching: "Tražim...",
+    generateAI: "AI Lyrics", generating: "Generiram...",
+    showLyrics: "Prikaži lyrics", openPanel: "Otvori panel", hideLyrics: "Sakrij lyrics",
+    synced: "SINHRONIZIRANO",
+    tabSearch: "🔍 Traži", tabAI: "✍ AI", tabPaste: "📋 Zalijepi",
+    pasteLyrics: "Zalijepi tekst pjesme",
+    pasteHint: "Zalijepi tekst ovdje...\n\nTekst možeš naći na:\n• Genius.com\n• AZLyrics.com\n• Musixmatch.com",
+    useThese: "✓ Koristi ovaj tekst",
+    searchBtn: "🔍 Traži lyrics", aiBtn: "✍ AI Generiraj lyrics",
+    clickSearch: "Klikni 'Traži' za traženje lyrics",
+    fileNameHint: "Ime datoteke se koristi za traženje",
+    clickAI: "Klikni 'Generiraj' za AI lyrics",
+    aiHint: "AI generira lyrics na temelju raspoloženja glazbe",
+    noResults: "Nema rezultata",
+    noResultsHint: "Lyrics za ovu pjesmu nisu pronađeni.\n\nPokušaj:\n• Preimenuj datoteku u: Artist - Song Title.mp3\n• Koristi 📋 Zalijepi tab\n• Koristi ✍ AI tab",
+    source: "Izvor",
+    footer: "Napravio Pengu s React + Web Audio API",
+    demoMode: "Demo način",
+  },
+  tr: {
+    flag: "🇹🇷", name: "Türkçe",
+    chooseSource: "Ses kaynağı seçin",
+    chooseSourceSub: "Görselleştirmek için müzik yükleyin",
+    uploadMusic: "Müzik yükle",
+    pause: "Duraklat", resume: "Oynat", stop: "Durdur",
+    gain: "SES", mood: "MOD",
+    searchLyrics: "Sözler", searching: "Aranıyor...",
+    generateAI: "AI Sözler", generating: "Oluşturuluyor...",
+    showLyrics: "Sözleri göster", openPanel: "Paneli aç", hideLyrics: "Sözleri gizle",
+    synced: "SENKRONİZE",
+    tabSearch: "🔍 Ara", tabAI: "✍ AI", tabPaste: "📋 Yapıştır",
+    pasteLyrics: "Şarkı sözlerini yapıştır",
+    pasteHint: "Sözleri buraya yapıştırın...\n\nŞarkı sözlerini bulun:\n• Genius.com\n• AZLyrics.com\n• Musixmatch.com",
+    useThese: "✓ Bu sözleri kullan",
+    searchBtn: "🔍 Sözleri ara", aiBtn: "✍ AI Sözler oluştur",
+    clickSearch: "Sözleri aramak için 'Ara'ya tıklayın",
+    fileNameHint: "Dosya adı arama için kullanılır",
+    clickAI: "AI sözleri için 'Oluştur'a tıklayın",
+    aiHint: "AI müzik moduna göre sözler oluşturur",
+    noResults: "Sonuç yok",
+    noResultsHint: "Bu şarkı için sözler bulunamadı.\n\nDeneyin:\n• Dosyayı yeniden adlandırın: Artist - Song Title.mp3\n• 📋 Yapıştır sekmesini kullanın\n• ✍ AI sekmesini kullanın",
+    source: "Kaynak",
+    footer: "React + Web Audio API ile Pengu tarafından yapıldı",
+    demoMode: "Demo mod",
+  },
+  ru: {
+    flag: "🇷🇺", name: "Русский",
+    chooseSource: "Выберите источник звука",
+    chooseSourceSub: "Загрузите музыку для визуализации",
+    uploadMusic: "Загрузить музыку",
+    pause: "Пауза", resume: "Воспроизвести", stop: "Стоп",
+    gain: "УСИЛ.", mood: "НАСТР.",
+    searchLyrics: "Текст", searching: "Поиск...",
+    generateAI: "AI Текст", generating: "Генерация...",
+    showLyrics: "Показать текст", openPanel: "Открыть панель", hideLyrics: "Скрыть текст",
+    synced: "СИНХРОНИЗИРОВАНО",
+    tabSearch: "🔍 Поиск", tabAI: "✍ AI", tabPaste: "📋 Вставить",
+    pasteLyrics: "Вставьте текст песни",
+    pasteHint: "Вставьте текст сюда...\n\nТексты песен можно найти на:\n• Genius.com\n• AZLyrics.com\n• Musixmatch.com",
+    useThese: "✓ Использовать этот текст",
+    searchBtn: "🔍 Найти текст", aiBtn: "✍ AI Генерировать текст",
+    clickSearch: "Нажмите 'Поиск' для поиска текста",
+    fileNameHint: "Имя файла используется для поиска",
+    clickAI: "Нажмите 'Генерировать' для AI текста",
+    aiHint: "AI генерирует текст на основе настроения музыки",
+    noResults: "Нет результатов",
+    noResultsHint: "Текст для этой песни не найден.\n\nПопробуйте:\n• Переименуйте файл: Artist - Song Title.mp3\n• Используйте вкладку 📋 Вставить\n• Используйте вкладку ✍ AI",
+    source: "Источник",
+    footer: "Создано Pengu с помощью React + Web Audio API",
+    demoMode: "Демо режим",
+  },
+};
+
 // ─── Main App ────────────────────────────────────────────
 
 export default function App() {
+  const [lang, setLang] = useState(() => localStorage.getItem("sw-lang") || "en");
+  const t = LANGS[lang] || LANGS.en;
   const [mode, setMode] = useState("bars");
   const [themeKey, setThemeKey] = useState("neon");
   const [source, setSource] = useState(null); // 'mic' | 'file'
@@ -619,33 +781,10 @@ export default function App() {
     setIsPlaying(false);
     setSource(null);
     setFileName("");
+    setShowLyrics(false);
+    setLyrics(null);
+    setKaraokeIndex(0);
   }, []);
-
-  const startMic = useCallback(async () => {
-    cleanup();
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
-      const ctx = audioCtxRef.current;
-      if (ctx.state === "suspended") await ctx.resume();
-
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.82;
-      analyserRef.current = analyser;
-
-      const src = ctx.createMediaStreamSource(stream);
-      src.connect(analyser);
-      sourceNodeRef.current = src;
-
-      setSource("mic");
-      setIsPlaying(true);
-    } catch (err) {
-      console.error("Microphone error:", err);
-    }
-  }, [cleanup]);
 
   const startFile = useCallback(async (file) => {
     cleanup();
@@ -714,7 +853,7 @@ export default function App() {
         setShowLyrics(true);
         setLyricsMode("search");
       } else {
-        setLyrics({ title: "Ni zadetkov", artist: "", verses: "Lyrics za to pesem niso bili najdeni.\n\nPoskusi:\n• Preimenuj datoteko v format: Artist - Song Title.mp3\n• Uporabi 📋 Prilepi tab in ročno prilepi lyrics\n• Uporabi ✍ AI Lyrics za generirane lyrics", mood_emoji: "😕" });
+        setLyrics({ title: t.noResults, artist: "", verses: t.noResultsHint, mood_emoji: "😕" });
         setShowLyrics(true);
         setLyricsMode("search");
       }
@@ -885,12 +1024,28 @@ export default function App() {
           display: "flex", justifyContent: "space-between", alignItems: "center",
           padding: "16px 24px", pointerEvents: "auto",
         }}>
-          <div style={{
-            fontWeight: 800, fontSize: 22, letterSpacing: "-0.02em",
-            background: `linear-gradient(135deg, ${theme.accent}, #fff)`,
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-          }}>
-            SOUNDWAVES
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{
+              fontWeight: 800, fontSize: 22, letterSpacing: "-0.02em",
+              background: `linear-gradient(135deg, ${theme.accent}, #fff)`,
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            }}>
+              SOUNDWAVES
+            </div>
+            <select
+              value={lang}
+              onChange={(e) => { setLang(e.target.value); localStorage.setItem("sw-lang", e.target.value); }}
+              style={{
+                background: "rgba(0,0,0,0.4)", backdropFilter: "blur(12px)",
+                border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8,
+                padding: "4px 8px", color: "#aaa", fontSize: 12,
+                cursor: "pointer", fontFamily: "'Syne', sans-serif",
+              }}
+            >
+              {Object.entries(LANGS).map(([key, val]) => (
+                <option key={key} value={key} style={{ background: "#111" }}>{val.flag} {val.name}</option>
+              ))}
+            </select>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -903,7 +1058,7 @@ export default function App() {
                 fontSize: 11, color: theme.accent,
                 transition: "all 0.3s",
               }}>
-                <span style={{ opacity: 0.6 }}>MOOD</span>
+                <span style={{ opacity: 0.6 }}>{t.mood}</span>
                 <span style={{ fontWeight: 700, textTransform: "uppercase" }}>{currentMood.mood}</span>
                 <span style={{ opacity: 0.4 }}>|</span>
                 <span style={{ opacity: 0.6 }}>⚡{currentMood.energy}</span>
@@ -913,7 +1068,7 @@ export default function App() {
               <button
                 onClick={() => { setShowLyrics(true); setLyricsView("overlay"); setLyricsMode("search"); handleSearchLyrics(); }}
                 disabled={lyricsLoading || !fileName}
-                title={!fileName ? "Naloži glasbo za iskanje lyrics" : "Poišči lyrics pesmi"}
+                title={!fileName ? t.uploadMusic : t.searchLyrics}
                 style={{
                   background: lyricsLoading ? "rgba(255,255,255,0.04)" : `${theme.accent}22`,
                   backdropFilter: "blur(12px)",
@@ -923,7 +1078,7 @@ export default function App() {
                   fontFamily: "'Syne', sans-serif", transition: "all 0.2s",
                 }}
               >
-                {lyricsLoading ? "⟳ Iščem..." : "🔍 Lyrics"}
+                {lyricsLoading ? `⟳ ${t.searching}` : `🔍 ${t.searchLyrics}`}
               </button>
             )}
             {(lyrics || source) && (
@@ -931,7 +1086,7 @@ export default function App() {
                 if (!showLyrics) { setShowLyrics(true); setLyricsView("overlay"); }
                 else if (lyricsView === "overlay") { setLyricsView("panel"); }
                 else { setShowLyrics(false); setLyricsView("overlay"); }
-              }} title={!showLyrics ? "Prikaži lyrics" : lyricsView === "overlay" ? "Odpri panel" : "Skrij lyrics"} style={{
+              }} title={!showLyrics ? t.showLyrics : lyricsView === "overlay" ? t.openPanel : t.hideLyrics} style={{
                 background: showLyrics ? `${theme.accent}22` : "rgba(0,0,0,0.4)",
                 backdropFilter: "blur(12px)",
                 border: `1px solid ${showLyrics ? theme.accent : "rgba(255,255,255,0.06)"}`,
@@ -954,7 +1109,7 @@ export default function App() {
                   background: isPlaying ? "#22c55e" : "#ef4444",
                   animation: isPlaying ? "pulse 1.5s infinite" : "none",
                 }} />
-                {source === "mic" ? "Mikrofon" : fileName || "Datoteka"}
+                {fileName || "Audio"}
               </div>
             )}
             <button
@@ -985,43 +1140,28 @@ export default function App() {
               background: `linear-gradient(135deg, ${theme.accent}, #fff)`,
               WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
             }}>
-              Izberi vir zvoka
+              {t.chooseSource}
             </div>
             <div style={{ color: "#aaa", fontSize: 14, marginBottom: 32 }}>
-              Poveži mikrofon ali naloži glasbo
+              {t.chooseSourceSub}
             </div>
-            <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
-              <button
-                onClick={startMic}
-                style={{
-                  background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}cc)`,
-                  border: "none", borderRadius: 14, padding: "14px 32px",
-                  color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer",
-                  fontFamily: "'Syne', sans-serif",
-                  boxShadow: `0 0 30px ${theme.glow}`,
-                  transition: "transform 0.2s",
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"}
-                onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
-              >
-                🎤 Mikrofon
-              </button>
-              <label style={{
-                background: "rgba(255,255,255,0.06)",
-                border: "2px solid rgba(255,255,255,0.08)", borderRadius: 14,
-                padding: "14px 32px", color: "#ccc", fontWeight: 700, fontSize: 15,
-                cursor: "pointer", fontFamily: "'Syne', sans-serif",
-                transition: "all 0.2s",
-              }}
-                onMouseEnter={(e) => e.currentTarget.style.borderColor = theme.accent}
-                onMouseLeave={(e) => e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"}
-              >
-                📁 Naloži glasbo
-                <input type="file" accept="audio/*" hidden
-                  onChange={(e) => e.target.files[0] && startFile(e.target.files[0])}
-                />
-              </label>
-            </div>
+            <label style={{
+              display: "inline-block",
+              background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}cc)`,
+              border: "none", borderRadius: 14, padding: "14px 40px",
+              color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer",
+              fontFamily: "'Syne', sans-serif",
+              boxShadow: `0 0 30px ${theme.glow}`,
+              transition: "transform 0.2s",
+            }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+              onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+            >
+              🎵 {t.uploadMusic}
+              <input type="file" accept="audio/*" hidden
+                onChange={(e) => e.target.files[0] && startFile(e.target.files[0])}
+              />
+            </label>
           </div>
         )}
 
@@ -1060,20 +1200,20 @@ export default function App() {
               <div style={{ display: "flex", gap: 16, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
                 {/* Themes */}
                 <div style={{ display: "flex", gap: 6 }}>
-                  {Object.entries(THEMES).map(([key, t]) => (
+                  {Object.entries(THEMES).map(([key, th]) => (
                     <button
                       key={key}
                       onClick={() => setThemeKey(key)}
-                      title={t.name}
+                      title={th.name}
                       style={{
                         width: 32, height: 32, borderRadius: 8,
-                        background: themeKey === key ? `${t.accent}33` : "rgba(255,255,255,0.04)",
-                        border: `1.5px solid ${themeKey === key ? t.accent : "rgba(255,255,255,0.08)"}`,
+                        background: themeKey === key ? `${th.accent}33` : "rgba(255,255,255,0.04)",
+                        border: `1.5px solid ${themeKey === key ? th.accent : "rgba(255,255,255,0.08)"}`,
                         cursor: "pointer", fontSize: 14, transition: "all 0.2s",
                         display: "flex", alignItems: "center", justifyContent: "center",
                       }}
                     >
-                      {t.icon}
+                      {th.icon}
                     </button>
                   ))}
                 </div>
@@ -1082,7 +1222,7 @@ export default function App() {
 
                 {/* Sensitivity */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 11, color: "#aaa", fontWeight: 600 }}>GAIN</span>
+                  <span style={{ fontSize: 11, color: "#aaa", fontWeight: 600 }}>{t.gain}</span>
                   <input
                     type="range" min="0.3" max="3" step="0.1"
                     value={sensitivity}
@@ -1095,37 +1235,22 @@ export default function App() {
 
                 {/* Action buttons */}
                 <div style={{ display: "flex", gap: 8 }}>
-                  {source === "file" && (
-                    <button
-                      onClick={togglePause}
-                      style={{
-                        background: "rgba(255,255,255,0.06)", border: "1.5px solid rgba(255,255,255,0.1)",
-                        borderRadius: 10, padding: "8px 18px",
-                        color: "#ccc", fontFamily: "'Syne', sans-serif", fontWeight: 600,
-                        fontSize: 13, cursor: "pointer",
-                      }}
-                    >
-                      {isPlaying ? "⏸ Pavza" : "▶ Predvajaj"}
-                    </button>
-                  )}
                   <button
-                    onClick={startMic}
+                    onClick={togglePause}
                     style={{
-                      background: source === "mic" ? `${theme.accent}22` : "rgba(255,255,255,0.04)",
-                      border: `1.5px solid ${source === "mic" ? theme.accent : "rgba(255,255,255,0.08)"}`,
-                      borderRadius: 10, padding: "8px 14px",
-                      color: source === "mic" ? theme.accent : "#888",
-                      fontFamily: "'Syne', sans-serif", fontWeight: 600,
+                      background: "rgba(255,255,255,0.06)", border: "1.5px solid rgba(255,255,255,0.1)",
+                      borderRadius: 10, padding: "8px 18px",
+                      color: "#ccc", fontFamily: "'Syne', sans-serif", fontWeight: 600,
                       fontSize: 13, cursor: "pointer",
                     }}
                   >
-                    🎤
+                    {isPlaying ? `⏸ ${t.pause}` : `▶ ${t.resume}`}
                   </button>
                   <label style={{
-                    background: source === "file" ? `${theme.accent}22` : "rgba(255,255,255,0.04)",
-                    border: `1.5px solid ${source === "file" ? theme.accent : "rgba(255,255,255,0.08)"}`,
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1.5px solid rgba(255,255,255,0.08)",
                     borderRadius: 10, padding: "8px 14px",
-                    color: source === "file" ? theme.accent : "#888",
+                    color: "#888",
                     fontFamily: "'Syne', sans-serif", fontWeight: 600,
                     fontSize: 13, cursor: "pointer",
                   }}>
@@ -1143,7 +1268,7 @@ export default function App() {
                       fontSize: 13, cursor: "pointer",
                     }}
                   >
-                    ■ Stop
+                    ■ {t.stop}
                   </button>
                 </div>
               </div>
@@ -1194,7 +1319,7 @@ export default function App() {
                 <span style={{ fontSize: 12, color: "#aaa" }}>— {lyrics.artist}</span>
               )}
               {useSynced && (
-                <span style={{ fontSize: 9, color: "#888", marginLeft: 4 }}>● SYNCED</span>
+                <span style={{ fontSize: 9, color: "#888", marginLeft: 4 }}>● {t.synced}</span>
               )}
             </div>
 
@@ -1280,9 +1405,9 @@ export default function App() {
             {/* Mode tabs */}
             <div style={{ display: "flex", gap: 4 }}>
               {[
-                { key: "search", label: "🔍 Poišči" },
-                { key: "ai", label: "✍ AI" },
-                { key: "paste", label: "📋 Prilepi" },
+                { key: "search", label: t.tabSearch },
+                { key: "ai", label: t.tabAI },
+                { key: "paste", label: t.tabPaste },
               ].map((tab) => (
                 <button key={tab.key} onClick={() => setLyricsMode(tab.key)} style={{
                   background: lyricsMode === tab.key ? `${theme.accent}22` : "rgba(255,255,255,0.03)",
@@ -1305,12 +1430,12 @@ export default function App() {
             /* Paste Mode */
             <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "16px 20px" }}>
               <div style={{ fontSize: 11, color: "#aaa", marginBottom: 8, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                Prilepi lyrics pesmi
+                {t.pasteLyrics}
               </div>
               <textarea
                 value={customLyrics}
                 onChange={(e) => setCustomLyrics(e.target.value)}
-                placeholder={"Prilepi besedilo pesmi tukaj...\n\nLyrics lahko najdeš na:\n• Genius.com\n• AZLyrics.com\n• Musixmatch.com"}
+                placeholder={t.pasteHint}
                 style={{
                   flex: 1, background: "rgba(255,255,255,0.03)",
                   border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10,
@@ -1331,7 +1456,7 @@ export default function App() {
                   padding: "10px", color: theme.accent, fontWeight: 700,
                   fontSize: 13, cursor: "pointer", fontFamily: "'Syne', sans-serif",
                 }}>
-                  ✓ Uporabi te lyrics
+                  {t.useThese}
                 </button>
               )}
             </div>
@@ -1413,13 +1538,13 @@ export default function App() {
                     </div>
                     <div style={{ fontSize: 14 }}>
                       {lyricsMode === "search"
-                        ? "Klikni 'Poišči' za iskanje lyrics"
-                        : "Klikni 'Generiraj' za AI lyrics"}
+                        ? t.clickSearch
+                        : t.clickAI}
                     </div>
                     <div style={{ fontSize: 12, marginTop: 6, color: "#888" }}>
                       {lyricsMode === "search"
-                        ? "Ime datoteke se uporabi za iskanje"
-                        : "AI generira lyrics na podlagi mooda glasbe"}
+                        ? t.fileNameHint
+                        : t.aiHint}
                     </div>
                   </div>
                 )}
@@ -1428,7 +1553,7 @@ export default function App() {
               {/* Source attribution */}
               {lyrics?.source && (
                 <div style={{ padding: "0 20px 8px", fontSize: 10, color: "#888" }}>
-                  Vir: {lyrics.source}
+                  {t.source}: {lyrics.source}
                 </div>
               )}
 
@@ -1446,7 +1571,7 @@ export default function App() {
                       fontFamily: "'Syne', sans-serif",
                     }}
                   >
-                    {lyricsLoading ? "⟳ Iščem..." : "🔍 Poišči lyrics"}
+                    {lyricsLoading ? `⟳ ${t.searching}` : t.searchBtn}
                   </button>
                 ) : (
                   <button
@@ -1460,7 +1585,7 @@ export default function App() {
                       fontFamily: "'Syne', sans-serif",
                     }}
                   >
-                    {lyricsLoading ? "⟳ Generiram..." : "✍ AI Generiraj lyrics"}
+                    {lyricsLoading ? `⟳ ${t.generating}` : t.aiBtn}
                   </button>
                 )}
               </div>
@@ -1475,7 +1600,7 @@ export default function App() {
           position: "fixed", bottom: 8, left: "50%", transform: "translateX(-50%)",
           zIndex: 20, fontSize: 10, color: "#888", letterSpacing: "0.06em",
         }}>
-          SOUNDWAVES v1.0 — Built with React + Web Audio API by Pengu
+          SOUNDWAVES v1.0 — {t.footer}
         </div>
       )}
     </div>

@@ -15,8 +15,8 @@ Real-time audio visualizer with 4 visualization modes, 5 color themes, synced ly
 - **Karaoke Overlay** — Full-screen lyrics display synced to the music in real-time
 - **AI Lyrics Generator** — Claude AI generates original lyrics based on audio mood analysis
 - **Paste Lyrics** — Manual lyrics input for any song
+- **6 Languages** — English, German, Slovenian, Croatian, Turkish, Russian
 - **Live Mood Detection** — Real-time frequency analysis (bass/mid/high) with mood classification
-- **Microphone Input** — Visualize ambient sound in real-time
 - **Music File Support** — Upload MP3, WAV, OGG, FLAC, or any audio format
 - **Gain Control** — Adjustable sensitivity slider
 - **60 FPS Canvas Rendering** — Smooth animations with HiDPI support
