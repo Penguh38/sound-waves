@@ -1,5 +1,107 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
+// ─── Config ──────────────────────────────────────────────
+const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY || "";
+
+// ─── Mood Detection ──────────────────────────────────────
+function detectMood(analyser) {
+  if (!analyser) return { energy: "medium", mood: "chill", genre: "pop", bpm: "medium" };
+  const freq = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(freq);
+
+  const bass = freq.slice(0, 10).reduce((a, b) => a + b, 0) / 10 / 255;
+  const mid = freq.slice(10, 40).reduce((a, b) => a + b, 0) / 30 / 255;
+  const high = freq.slice(40, 80).reduce((a, b) => a + b, 0) / 40 / 255;
+  const overall = (bass + mid + high) / 3;
+
+  let energy = overall > 0.5 ? "high" : overall > 0.25 ? "medium" : "low";
+  let mood, genre;
+
+  if (bass > 0.5 && overall > 0.4) { mood = "intense"; genre = "electronic/hip-hop"; }
+  else if (high > mid && overall > 0.3) { mood = "bright"; genre = "pop/dance"; }
+  else if (bass > mid && overall < 0.3) { mood = "dark"; genre = "ambient/trap"; }
+  else if (overall < 0.2) { mood = "melancholic"; genre = "ballad/acoustic"; }
+  else if (mid > bass && mid > high) { mood = "warm"; genre = "r&b/soul"; }
+  else { mood = "chill"; genre = "indie/alternative"; }
+
+  return { energy, mood, genre, bass: Math.round(bass * 100), mid: Math.round(mid * 100), high: Math.round(high * 100) };
+}
+
+// ─── Demo Lyrics ─────────────────────────────────────────
+const DEMO_LYRICS = {
+  intense: {
+    title: "Neon Pulse",
+    verses: "Bass drops heavy through the night\nNeon lights painting shadows bright\nFeel the rhythm in my veins\nBreaking free from all these chains\n\nLouder now the speakers cry\nWe're alive beneath this sky\nEvery beat a heart reborn\nDancing through the eye of storm",
+    mood_emoji: "⚡",
+  },
+  bright: {
+    title: "Golden Hour",
+    verses: "Sunlight streaming through the haze\nLost inside these golden days\nMelody lifts me off the ground\nSpinning to the sweetest sound\n\nColors burst behind my eyes\nChasing echoes through the skies\nThis moment's all we ever need\nA symphony that sets us free",
+    mood_emoji: "☀️",
+  },
+  dark: {
+    title: "Midnight Echo",
+    verses: "Shadows whisper in the deep\nSecrets that the darkness keeps\nBass lines crawl beneath the floor\nKnocking on a hidden door\n\nEchoes fade to silent screams\nNothing here is what it seems\nLost in waves of endless sound\nSinking deeper underground",
+    mood_emoji: "🌑",
+  },
+  melancholic: {
+    title: "Paper Hearts",
+    verses: "Silence fills the empty room\nMelodies of fading bloom\nEvery note a memory\nOf the way you looked at me\n\nStrings pull tight across my chest\nSearching for a place to rest\nIn the quiet I can hear\nAll the words that disappeared",
+    mood_emoji: "💔",
+  },
+  warm: {
+    title: "Velvet Sun",
+    verses: "Smooth like honey, slow like rain\nEvery chord dissolves the pain\nGroove that wraps around your soul\nMaking broken pieces whole\n\nSwaying to a deeper call\nLetting go and feeling small\nIn this pocket of the night\nEverything just feels so right",
+    mood_emoji: "✨",
+  },
+  chill: {
+    title: "Drifting",
+    verses: "Floating through the afternoon\nHumming someone else's tune\nWindows down and volume low\nNowhere that I need to go\n\nClouds are painting stories high\nI just watch them rolling by\nEvery second, every breath\nNothing more and nothing less",
+    mood_emoji: "🌊",
+  },
+};
+
+async function generateLyrics(moodData) {
+  if (!API_KEY) {
+    await new Promise((r) => setTimeout(r, 1500 + Math.random() * 1000));
+    const lyrics = DEMO_LYRICS[moodData.mood] || DEMO_LYRICS.chill;
+    return { ...lyrics, title: `[DEMO] ${lyrics.title}` };
+  }
+
+  const prompt = `You are a songwriter. Based on this audio analysis, write original song lyrics in English.
+
+Audio mood: ${moodData.mood}
+Energy level: ${moodData.energy}
+Genre feel: ${moodData.genre}
+Bass: ${moodData.bass}%, Mids: ${moodData.mid}%, Highs: ${moodData.high}%
+
+Respond ONLY with JSON (no markdown, no backticks):
+{
+  "title": "song title",
+  "verses": "full lyrics with \\n for line breaks, 2 verses with a blank line between them",
+  "mood_emoji": "one emoji that fits the mood"
+}`;
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": API_KEY,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  const data = await response.json();
+  const raw = data.content.map((i) => i.text || "").join("\n");
+  return JSON.parse(raw.replace(/```json|```/g, "").trim());
+}
+
 // ─── Color Themes ────────────────────────────────────────
 const THEMES = {
   neon: {
@@ -62,48 +164,90 @@ const THEMES = {
 // ─── Visualization Renderers ─────────────────────────────
 
 function drawBars(ctx, w, h, freq, wave, theme, time) {
-  const barCount = 80;
-  const gap = 2;
-  const barW = (w - gap * barCount) / barCount;
-  const step = Math.floor(freq.length / barCount);
+  const barCount = 64;
+  const totalBarWidth = w * 0.85;
+  const gap = 3;
+  const barW = (totalBarWidth - gap * (barCount - 1)) / barCount;
+  const startX = (w - totalBarWidth) / 2;
 
-  for (let i = 0; i < barCount; i++) {
+  // Logarithmic frequency mapping — spreads energy more evenly
+  const getFreqValue = (i) => {
+    const minFreq = 1;
+    const maxFreq = freq.length - 1;
+    const logMin = Math.log(minFreq);
+    const logMax = Math.log(maxFreq);
+    const t = i / barCount;
+    const logFreq = logMin + t * (logMax - logMin);
+    const freqIndex = Math.round(Math.exp(logFreq));
+    
+    // Average a small range around the index for smoothness
+    const range = Math.max(1, Math.floor(freq.length / barCount / 2));
     let sum = 0;
-    for (let j = 0; j < step; j++) sum += freq[i * step + j];
-    const val = (sum / step) / 255;
-    const barH = val * h * 0.85 + 2;
+    let count = 0;
+    for (let j = Math.max(0, freqIndex - range); j <= Math.min(freq.length - 1, freqIndex + range); j++) {
+      sum += freq[j];
+      count++;
+    }
+    return (sum / count) / 255;
+  };
 
-    const x = i * (barW + gap);
-    const y = h - barH;
+  // Draw from center outward for symmetry effect
+  for (let i = 0; i < barCount; i++) {
+    const val = getFreqValue(i);
+    
+    // Boost quieter bars slightly so they're not flat
+    const boosted = Math.pow(val, 0.7) * 0.95 + 0.02;
+    const barH = boosted * h * 0.8 + 3;
+
+    const x = startX + i * (barW + gap);
+    const cy = h / 2;
 
     const color = theme.colors(i, barCount);
     ctx.fillStyle = color;
 
-    // Main bar with rounded top
-    const radius = Math.min(barW / 2, 4);
+    // Draw bar from center upward and downward (mirrored)
+    const halfH = barH / 2;
+    const radius = Math.min(barW / 2, 3);
+
+    // Top half
     ctx.beginPath();
-    ctx.moveTo(x, h);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.lineTo(x + barW - radius, y);
-    ctx.quadraticCurveTo(x + barW, y, x + barW, y + radius);
-    ctx.lineTo(x + barW, h);
+    ctx.moveTo(x, cy);
+    ctx.lineTo(x, cy - halfH + radius);
+    ctx.quadraticCurveTo(x, cy - halfH, x + radius, cy - halfH);
+    ctx.lineTo(x + barW - radius, cy - halfH);
+    ctx.quadraticCurveTo(x + barW, cy - halfH, x + barW, cy - halfH + radius);
+    ctx.lineTo(x + barW, cy);
     ctx.fill();
 
-    // Glow effect
-    if (val > 0.4) {
+    // Bottom half (mirror)
+    ctx.beginPath();
+    ctx.moveTo(x, cy);
+    ctx.lineTo(x, cy + halfH - radius);
+    ctx.quadraticCurveTo(x, cy + halfH, x + radius, cy + halfH);
+    ctx.lineTo(x + barW - radius, cy + halfH);
+    ctx.quadraticCurveTo(x + barW, cy + halfH, x + barW, cy + halfH - radius);
+    ctx.lineTo(x + barW, cy);
+    ctx.globalAlpha = 0.6;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Glow on loud bars
+    if (val > 0.35) {
       ctx.shadowColor = color;
-      ctx.shadowBlur = val * 20;
-      ctx.fillRect(x, y, barW, 2);
+      ctx.shadowBlur = val * 25;
+      ctx.fillRect(x, cy - halfH, barW, 2);
+      ctx.fillRect(x, cy + halfH - 2, barW, 2);
       ctx.shadowBlur = 0;
     }
-
-    // Reflection
-    ctx.fillStyle = color;
-    ctx.globalAlpha = 0.08;
-    ctx.fillRect(x, h, barW, barH * 0.2);
-    ctx.globalAlpha = 1;
   }
+
+  // Center line
+  ctx.strokeStyle = theme.accent + "15";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(startX, h / 2);
+  ctx.lineTo(startX + totalBarWidth, h / 2);
+  ctx.stroke();
 }
 
 function drawCircular(ctx, w, h, freq, wave, theme, time) {
@@ -111,7 +255,16 @@ function drawCircular(ctx, w, h, freq, wave, theme, time) {
   const cy = h / 2;
   const baseR = Math.min(w, h) * 0.22;
   const barCount = 120;
-  const step = Math.floor(freq.length / barCount);
+
+  // Logarithmic frequency value getter
+  const getFreqValue = (i) => {
+    const t = i / barCount;
+    const logIdx = Math.round(Math.exp(Math.log(1) + t * (Math.log(freq.length - 1) - Math.log(1))));
+    const range = Math.max(1, Math.floor(freq.length / barCount / 2));
+    let sum = 0, count = 0;
+    for (let j = Math.max(0, logIdx - range); j <= Math.min(freq.length - 1, logIdx + range); j++) { sum += freq[j]; count++; }
+    return Math.pow((sum / count) / 255, 0.7);
+  };
 
   // Outer glow ring
   const avgEnergy = freq.reduce((a, b) => a + b, 0) / freq.length / 255;
@@ -137,9 +290,7 @@ function drawCircular(ctx, w, h, freq, wave, theme, time) {
   ctx.fill();
 
   for (let i = 0; i < barCount; i++) {
-    let sum = 0;
-    for (let j = 0; j < step; j++) sum += freq[i * step + j];
-    const val = (sum / step) / 255;
+    const val = getFreqValue(i);
 
     const angle = (i / barCount) * Math.PI * 2 - Math.PI / 2 + time * 0.0003;
     const barLen = val * baseR * 1.2 + 3;
@@ -356,6 +507,10 @@ export default function App() {
   const [fileName, setFileName] = useState("");
   const [sensitivity, setSensitivity] = useState(1.2);
   const [showControls, setShowControls] = useState(true);
+  const [lyrics, setLyrics] = useState(null);
+  const [lyricsLoading, setLyricsLoading] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
+  const [currentMood, setCurrentMood] = useState(null);
 
   const canvasRef = useRef(null);
   const animRef = useRef(null);
@@ -447,6 +602,30 @@ export default function App() {
       setIsPlaying(false);
     }
   }, []);
+
+  const handleGenerateLyrics = useCallback(async () => {
+    if (lyricsLoading) return;
+    setLyricsLoading(true);
+    const mood = detectMood(analyserRef.current);
+    setCurrentMood(mood);
+    try {
+      const result = await generateLyrics(mood);
+      setLyrics(result);
+      setShowLyrics(true);
+    } catch (err) {
+      console.error("Lyrics generation error:", err);
+    }
+    setLyricsLoading(false);
+  }, [lyricsLoading]);
+
+  // Periodically update mood display
+  useEffect(() => {
+    if (!isPlaying || !analyserRef.current) { setCurrentMood(null); return; }
+    const interval = setInterval(() => {
+      setCurrentMood(detectMood(analyserRef.current));
+    }, 500);
+    return () => clearInterval(interval);
+  }, [isPlaying]);
 
   // Animation loop
   useEffect(() => {
@@ -571,7 +750,48 @@ export default function App() {
             SOUNDWAVES
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {currentMood && isPlaying && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6,
+                background: "rgba(0,0,0,0.4)", backdropFilter: "blur(12px)",
+                padding: "6px 14px", borderRadius: 20,
+                border: `1px solid ${theme.accent}33`,
+                fontSize: 11, color: theme.accent,
+                transition: "all 0.3s",
+              }}>
+                <span style={{ opacity: 0.6 }}>MOOD</span>
+                <span style={{ fontWeight: 700, textTransform: "uppercase" }}>{currentMood.mood}</span>
+                <span style={{ opacity: 0.4 }}>|</span>
+                <span style={{ opacity: 0.6 }}>⚡{currentMood.energy}</span>
+              </div>
+            )}
+            {source && isPlaying && (
+              <button
+                onClick={handleGenerateLyrics}
+                disabled={lyricsLoading}
+                style={{
+                  background: lyricsLoading ? "rgba(255,255,255,0.04)" : `${theme.accent}22`,
+                  backdropFilter: "blur(12px)",
+                  border: `1px solid ${theme.accent}44`, borderRadius: 20,
+                  padding: "6px 14px", color: theme.accent, fontSize: 12,
+                  fontWeight: 700, cursor: lyricsLoading ? "wait" : "pointer",
+                  fontFamily: "'Syne', sans-serif", transition: "all 0.2s",
+                }}
+              >
+                {lyricsLoading ? "⟳ Generiram..." : "✍ AI Lyrics"}
+              </button>
+            )}
+            {lyrics && (
+              <button onClick={() => setShowLyrics(!showLyrics)} style={{
+                background: showLyrics ? `${theme.accent}22` : "rgba(0,0,0,0.4)",
+                backdropFilter: "blur(12px)",
+                border: `1px solid ${showLyrics ? theme.accent : "rgba(255,255,255,0.06)"}`,
+                borderRadius: 10, width: 36, height: 36,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: showLyrics ? theme.accent : "#999", fontSize: 16, cursor: "pointer",
+              }}>♫</button>
+            )}
             {source && (
               <div style={{
                 display: "flex", alignItems: "center", gap: 6,
@@ -782,6 +1002,111 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Lyrics Panel */}
+      {showLyrics && lyrics && (
+        <div style={{
+          position: "fixed", top: 0, right: 0, bottom: 0,
+          width: 360, maxWidth: "90vw", zIndex: 50,
+          background: "rgba(8,7,14,0.92)", backdropFilter: "blur(20px)",
+          borderLeft: `1px solid ${theme.accent}22`,
+          animation: "slideLeft 0.4s ease",
+          display: "flex", flexDirection: "column",
+          overflow: "hidden",
+        }}>
+          <style>{`@keyframes slideLeft { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }`}</style>
+
+          {/* Lyrics Header */}
+          <div style={{
+            padding: "20px 24px", borderBottom: `1px solid ${theme.accent}15`,
+            display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+          }}>
+            <div>
+              <div style={{ fontSize: 12, color: theme.accent, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                AI Generated Lyrics
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 22, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+                <span>{lyrics.mood_emoji}</span>
+                <span>{lyrics.title}</span>
+              </div>
+              {currentMood && (
+                <div style={{ fontSize: 11, color: "#666", marginTop: 6, display: "flex", gap: 10 }}>
+                  <span>Mood: {currentMood.mood}</span>
+                  <span>Energy: {currentMood.energy}</span>
+                  <span>Genre: {currentMood.genre}</span>
+                </div>
+              )}
+            </div>
+            <button onClick={() => setShowLyrics(false)} style={{
+              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 8, width: 32, height: 32, color: "#666", fontSize: 14,
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            }}>✕</button>
+          </div>
+
+          {/* Audio Analysis */}
+          {currentMood && (
+            <div style={{ padding: "16px 24px", borderBottom: `1px solid ${theme.accent}10` }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                {[
+                  { label: "Bass", value: currentMood.bass, color: "#f72585" },
+                  { label: "Mid", value: currentMood.mid, color: "#4cc9f0" },
+                  { label: "High", value: currentMood.high, color: "#06d6a0" },
+                ].map((band) => (
+                  <div key={band.label} style={{ flex: 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#555", marginBottom: 4 }}>
+                      <span>{band.label}</span>
+                      <span style={{ color: band.color }}>{band.value}%</span>
+                    </div>
+                    <div style={{ height: 3, borderRadius: 2, background: "rgba(255,255,255,0.05)" }}>
+                      <div style={{
+                        height: "100%", borderRadius: 2, background: band.color,
+                        width: `${band.value}%`, transition: "width 0.5s ease",
+                      }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Lyrics Content */}
+          <div style={{
+            flex: 1, overflow: "auto", padding: "24px",
+            fontFamily: "'Outfit', sans-serif",
+          }}>
+            {lyrics.verses.split("\n").map((line, i) => (
+              <div key={i} style={{
+                fontSize: line.trim() === "" ? 8 : 15,
+                color: line.trim() === "" ? "transparent" : "#ccc",
+                lineHeight: 2,
+                fontWeight: 400,
+                transition: "color 0.3s",
+                ...(line.trim() === "" ? { height: 16 } : {}),
+              }}>
+                {line || " "}
+              </div>
+            ))}
+          </div>
+
+          {/* Regenerate Button */}
+          <div style={{ padding: "16px 24px", borderTop: `1px solid ${theme.accent}10` }}>
+            <button
+              onClick={handleGenerateLyrics}
+              disabled={lyricsLoading}
+              style={{
+                width: "100%", background: `${theme.accent}15`,
+                border: `1px solid ${theme.accent}33`, borderRadius: 10,
+                padding: "12px", color: theme.accent, fontWeight: 700,
+                fontSize: 13, cursor: lyricsLoading ? "wait" : "pointer",
+                fontFamily: "'Syne', sans-serif",
+              }}
+            >
+              {lyricsLoading ? "⟳ Generiram nove lyrics..." : "↻ Generiraj nove lyrics"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Keyboard shortcuts hint */}
       {source && showControls && (
