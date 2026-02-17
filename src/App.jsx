@@ -579,9 +579,9 @@ const MODES = [
 // ─── Translations ────────────────────────────────────────
 const LANGS = {
   en: {
-    flag: "🇬🇧", name: "English",
+    flag: "gb", code: "EN", name: "English",
     chooseSource: "Choose audio source",
-    chooseSourceSub: "Upload music to visualize",
+    chooseSourceSub: "Upload a file or paste an audio URL",
     uploadMusic: "Upload music",
     pause: "Pause", resume: "Play", stop: "Stop",
     gain: "GAIN", mood: "MOOD",
@@ -603,11 +603,13 @@ const LANGS = {
     source: "Source",
     footer: "Built with React + Web Audio API by Pengu",
     demoMode: "Demo mode",
+    urlPlaceholder: "Paste audio URL...",
+    urlHint: "Direct link to .mp3, .wav, .ogg, .flac",
   },
   de: {
-    flag: "🇩🇪", name: "Deutsch",
+    flag: "de", code: "DE", name: "Deutsch",
     chooseSource: "Audioquelle wählen",
-    chooseSourceSub: "Musik hochladen zum Visualisieren",
+    chooseSourceSub: "Datei hochladen oder Audio-URL einfügen",
     uploadMusic: "Musik hochladen",
     pause: "Pause", resume: "Abspielen", stop: "Stopp",
     gain: "LAUTST.", mood: "STIMMUNG",
@@ -629,11 +631,13 @@ const LANGS = {
     source: "Quelle",
     footer: "Erstellt mit React + Web Audio API von Pengu",
     demoMode: "Demo-Modus",
+    urlPlaceholder: "Audio-URL einfügen...",
+    urlHint: "Direkter Link zu .mp3, .wav, .ogg, .flac",
   },
   sl: {
-    flag: "🇸🇮", name: "Slovenščina",
+    flag: "si", code: "SI", name: "Slovenščina",
     chooseSource: "Izberi vir zvoka",
-    chooseSourceSub: "Naloži glasbo za vizualizacijo",
+    chooseSourceSub: "Naloži datoteko ali prilepi URL",
     uploadMusic: "Naloži glasbo",
     pause: "Pavza", resume: "Predvajaj", stop: "Stop",
     gain: "OJAČITEV", mood: "MOOD",
@@ -655,11 +659,13 @@ const LANGS = {
     source: "Vir",
     footer: "Naredil Pengu z React + Web Audio API",
     demoMode: "Demo način",
+    urlPlaceholder: "Prilepi URL zvočne datoteke...",
+    urlHint: "Direktna povezava do .mp3, .wav, .ogg, .flac",
   },
   hr: {
-    flag: "🇭🇷", name: "Hrvatski",
+    flag: "hr", code: "HR", name: "Hrvatski",
     chooseSource: "Odaberi izvor zvuka",
-    chooseSourceSub: "Učitaj glazbu za vizualizaciju",
+    chooseSourceSub: "Učitaj datoteku ili zalijepi URL",
     uploadMusic: "Učitaj glazbu",
     pause: "Pauza", resume: "Reproduciraj", stop: "Stop",
     gain: "POJAČANJE", mood: "RASPOLOŽENJE",
@@ -681,11 +687,13 @@ const LANGS = {
     source: "Izvor",
     footer: "Napravio Pengu s React + Web Audio API",
     demoMode: "Demo način",
+    urlPlaceholder: "Zalijepi URL audio datoteke...",
+    urlHint: "Direktna poveznica na .mp3, .wav, .ogg, .flac",
   },
   tr: {
-    flag: "🇹🇷", name: "Türkçe",
+    flag: "tr", code: "TR", name: "Türkçe",
     chooseSource: "Ses kaynağı seçin",
-    chooseSourceSub: "Görselleştirmek için müzik yükleyin",
+    chooseSourceSub: "Dosya yükleyin veya ses URL'si yapıştırın",
     uploadMusic: "Müzik yükle",
     pause: "Duraklat", resume: "Oynat", stop: "Durdur",
     gain: "SES", mood: "MOD",
@@ -707,11 +715,13 @@ const LANGS = {
     source: "Kaynak",
     footer: "React + Web Audio API ile Pengu tarafından yapıldı",
     demoMode: "Demo mod",
+    urlPlaceholder: "Ses dosyası URL'sini yapıştırın...",
+    urlHint: ".mp3, .wav, .ogg, .flac doğrudan bağlantı",
   },
   ru: {
-    flag: "🇷🇺", name: "Русский",
+    flag: "ru", code: "RU", name: "Русский",
     chooseSource: "Выберите источник звука",
-    chooseSourceSub: "Загрузите музыку для визуализации",
+    chooseSourceSub: "Загрузите файл или вставьте URL аудио",
     uploadMusic: "Загрузить музыку",
     pause: "Пауза", resume: "Воспроизвести", stop: "Стоп",
     gain: "УСИЛ.", mood: "НАСТР.",
@@ -733,6 +743,8 @@ const LANGS = {
     source: "Источник",
     footer: "Создано Pengu с помощью React + Web Audio API",
     demoMode: "Демо режим",
+    urlPlaceholder: "Вставьте URL аудиофайла...",
+    urlHint: "Прямая ссылка на .mp3, .wav, .ogg, .flac",
   },
 };
 
@@ -755,6 +767,8 @@ export default function App() {
   const [customLyrics, setCustomLyrics] = useState("");
   const [lyricsMode, setLyricsMode] = useState("search"); // "search" | "ai" | "paste"
   const [lyricsView, setLyricsView] = useState("overlay"); // "overlay" | "panel"
+  const [showLangPicker, setShowLangPicker] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
   const [karaokeIndex, setKaraokeIndex] = useState(0);
   const [karaokePlaying, setKaraokePlaying] = useState(false);
   const karaokeRef = useRef(null);
@@ -814,6 +828,45 @@ export default function App() {
 
     setSource("file");
     setIsPlaying(true);
+  }, [cleanup]);
+
+  const startURL = useCallback(async (url) => {
+    if (!url.trim()) return;
+    cleanup();
+    // Extract a display name from URL
+    const urlName = decodeURIComponent(url.split("/").pop().split("?")[0]) || "Stream";
+    setFileName(urlName);
+
+    if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
+    const ctx = audioCtxRef.current;
+    if (ctx.state === "suspended") await ctx.resume();
+
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.82;
+    analyserRef.current = analyser;
+
+    const audio = new Audio();
+    audio.crossOrigin = "anonymous";
+    audio.src = url.trim();
+    audioElRef.current = audio;
+
+    const src = ctx.createMediaElementSource(audio);
+    src.connect(analyser);
+    analyser.connect(ctx.destination);
+    sourceNodeRef.current = src;
+
+    try {
+      await audio.play();
+      audio.onended = () => { setIsPlaying(false); };
+      setSource("file");
+      setIsPlaying(true);
+      setUrlInput("");
+    } catch (err) {
+      console.error("URL playback error:", err);
+      setFileName("");
+      setSource(null);
+    }
   }, [cleanup]);
 
   const togglePause = useCallback(() => {
@@ -1032,20 +1085,54 @@ export default function App() {
             }}>
               SOUNDWAVES
             </div>
-            <select
-              value={lang}
-              onChange={(e) => { setLang(e.target.value); localStorage.setItem("sw-lang", e.target.value); }}
-              style={{
-                background: "rgba(0,0,0,0.4)", backdropFilter: "blur(12px)",
-                border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8,
-                padding: "4px 8px", color: "#aaa", fontSize: 12,
-                cursor: "pointer", fontFamily: "'Syne', sans-serif",
-              }}
-            >
-              {Object.entries(LANGS).map(([key, val]) => (
-                <option key={key} value={key} style={{ background: "#111" }}>{val.flag} {val.name}</option>
-              ))}
-            </select>
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setShowLangPicker((p) => !p)}
+                style={{
+                  background: "rgba(0,0,0,0.4)", backdropFilter: "blur(12px)",
+                  border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8,
+                  padding: "5px 10px", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 6,
+                }}
+              >
+                <img src={`https://flagcdn.com/w40/${LANGS[lang].flag}.png`} alt="" style={{ width: 20, height: 14, borderRadius: 2, objectFit: "cover" }} />
+                <span style={{ fontSize: 10, color: "#888" }}>▾</span>
+              </button>
+              {showLangPicker && (
+                <>
+                  <div onClick={() => setShowLangPicker(false)} style={{ position: "fixed", inset: 0, zIndex: 98 }} />
+                  <div style={{
+                    position: "absolute", top: "110%", left: 0, zIndex: 99,
+                    background: "rgba(15,15,25,0.95)", backdropFilter: "blur(16px)",
+                    border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10,
+                    padding: 6, display: "flex", flexDirection: "column", gap: 2,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                    minWidth: 170,
+                  }}>
+                    {Object.entries(LANGS).map(([key, val]) => (
+                      <button
+                        key={key}
+                        onClick={() => { setLang(key); localStorage.setItem("sw-lang", key); setShowLangPicker(false); }}
+                        style={{
+                          background: lang === key ? `${theme.accent}22` : "transparent",
+                          border: "none", borderRadius: 6,
+                          padding: "7px 10px", cursor: "pointer",
+                          display: "flex", alignItems: "center", gap: 10,
+                          color: lang === key ? theme.accent : "#ccc",
+                          fontSize: 13, fontFamily: "'Outfit', sans-serif",
+                          transition: "background 0.15s",
+                        }}
+                        onMouseEnter={(e) => { if (lang !== key) e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                        onMouseLeave={(e) => { if (lang !== key) e.currentTarget.style.background = "transparent"; }}
+                      >
+                        <img src={`https://flagcdn.com/w40/${val.flag}.png`} alt="" style={{ width: 22, height: 15, borderRadius: 2, objectFit: "cover" }} />
+                        <span>{val.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -1145,6 +1232,8 @@ export default function App() {
             <div style={{ color: "#aaa", fontSize: 14, marginBottom: 32 }}>
               {t.chooseSourceSub}
             </div>
+
+            {/* Upload button */}
             <label style={{
               display: "inline-block",
               background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}cc)`,
@@ -1179,7 +1268,17 @@ export default function App() {
                 {MODES.map((m) => (
                   <button
                     key={m.key}
-                    onClick={() => { setMode(m.key); particlesRef.current = null; }}
+                    onClick={() => {
+                      setMode(m.key);
+                      particlesRef.current = null;
+                      // Clear canvas immediately to prevent glitch
+                      if (canvasRef.current) {
+                        const c = canvasRef.current;
+                        const cx = c.getContext("2d");
+                        cx.fillStyle = theme.bg;
+                        cx.fillRect(0, 0, c.width, c.height);
+                      }
+                    }}
                     style={{
                       background: mode === m.key ? `${theme.accent}22` : "rgba(255,255,255,0.04)",
                       border: `1.5px solid ${mode === m.key ? theme.accent : "rgba(255,255,255,0.08)"}`,
