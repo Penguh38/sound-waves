@@ -61,6 +61,58 @@ const DEMO_LYRICS = {
   },
 };
 
+// ─── Lyrics Search (lrclib.net — free, no API key) ──────
+async function searchLyrics(songFileName) {
+  const cleanName = songFileName
+    ? songFileName.replace(/\.(mp3|wav|ogg|flac|m4a|aac|wma)$/i, "")
+        .replace(/[_\-]+/g, " ")
+        .replace(/\d{3,}/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+    : "";
+
+  if (!cleanName) return null;
+
+  try {
+    const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanName)}`);
+    const data = await res.json();
+
+    if (data && data.length > 0) {
+      // Find best match (prefer ones with plain lyrics)
+      const best = data.find((d) => d.plainLyrics) || data[0];
+      return {
+        title: best.trackName || cleanName,
+        artist: best.artistName || "Unknown",
+        verses: best.plainLyrics || best.syncedLyrics || "Lyrics niso na voljo.",
+        mood_emoji: "🎵",
+        source: "lrclib.net",
+      };
+    }
+
+    // Try with shorter query (first few words)
+    const shortName = cleanName.split(" ").slice(0, 3).join(" ");
+    if (shortName !== cleanName) {
+      const res2 = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(shortName)}`);
+      const data2 = await res2.json();
+      if (data2 && data2.length > 0) {
+        const best = data2.find((d) => d.plainLyrics) || data2[0];
+        return {
+          title: best.trackName || cleanName,
+          artist: best.artistName || "Unknown",
+          verses: best.plainLyrics || best.syncedLyrics || "Lyrics niso na voljo.",
+          mood_emoji: "🎵",
+          source: "lrclib.net",
+        };
+      }
+    }
+
+    return null;
+  } catch (err) {
+    console.error("Lyrics search error:", err);
+    return null;
+  }
+}
+
 async function generateLyrics(moodData, songFileName) {
   // Clean up filename to get song name
   const cleanName = songFileName
@@ -510,7 +562,7 @@ export default function App() {
   const [showLyrics, setShowLyrics] = useState(false);
   const [currentMood, setCurrentMood] = useState(null);
   const [customLyrics, setCustomLyrics] = useState("");
-  const [lyricsMode, setLyricsMode] = useState("ai"); // "ai" | "paste"
+  const [lyricsMode, setLyricsMode] = useState("search"); // "search" | "ai" | "paste"
 
   const canvasRef = useRef(null);
   const animRef = useRef(null);
@@ -612,8 +664,29 @@ export default function App() {
       const result = await generateLyrics(mood, fileName);
       setLyrics(result);
       setShowLyrics(true);
+      setLyricsMode("ai");
     } catch (err) {
       console.error("Lyrics generation error:", err);
+    }
+    setLyricsLoading(false);
+  }, [lyricsLoading, fileName]);
+
+  const handleSearchLyrics = useCallback(async () => {
+    if (lyricsLoading || !fileName) return;
+    setLyricsLoading(true);
+    try {
+      const result = await searchLyrics(fileName);
+      if (result) {
+        setLyrics(result);
+        setShowLyrics(true);
+        setLyricsMode("search");
+      } else {
+        setLyrics({ title: "Ni zadetkov", artist: "", verses: "Lyrics za to pesem niso bili najdeni.\n\nPoskusi:\n• Preimenuj datoteko v format: Artist - Song Title.mp3\n• Uporabi 📋 Prilepi tab in ročno prilepi lyrics\n• Uporabi ✍ AI Lyrics za generirane lyrics", mood_emoji: "😕" });
+        setShowLyrics(true);
+        setLyricsMode("search");
+      }
+    } catch (err) {
+      console.error("Lyrics search error:", err);
     }
     setLyricsLoading(false);
   }, [lyricsLoading, fileName]);
@@ -768,18 +841,19 @@ export default function App() {
             )}
             {source && isPlaying && (
               <button
-                onClick={handleGenerateLyrics}
-                disabled={lyricsLoading}
+                onClick={() => { setShowLyrics(true); setLyricsMode("search"); handleSearchLyrics(); }}
+                disabled={lyricsLoading || !fileName}
+                title={!fileName ? "Naloži glasbo za iskanje lyrics" : "Poišči lyrics pesmi"}
                 style={{
                   background: lyricsLoading ? "rgba(255,255,255,0.04)" : `${theme.accent}22`,
                   backdropFilter: "blur(12px)",
                   border: `1px solid ${theme.accent}44`, borderRadius: 20,
-                  padding: "6px 14px", color: theme.accent, fontSize: 12,
-                  fontWeight: 700, cursor: lyricsLoading ? "wait" : "pointer",
+                  padding: "6px 14px", color: !fileName ? "#555" : theme.accent, fontSize: 12,
+                  fontWeight: 700, cursor: lyricsLoading ? "wait" : !fileName ? "not-allowed" : "pointer",
                   fontFamily: "'Syne', sans-serif", transition: "all 0.2s",
                 }}
               >
-                {lyricsLoading ? "⟳ Generiram..." : "✍ AI Lyrics"}
+                {lyricsLoading ? "⟳ Iščem..." : "🔍 Lyrics"}
               </button>
             )}
             {(lyrics || source) && (
@@ -838,7 +912,7 @@ export default function App() {
             }}>
               Izberi vir zvoka
             </div>
-            <div style={{ color: "#666", fontSize: 14, marginBottom: 32 }}>
+            <div style={{ color: "#aaa", fontSize: 14, marginBottom: 32 }}>
               Poveži mikrofon ali naloži glasbo
             </div>
             <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
@@ -933,7 +1007,7 @@ export default function App() {
 
                 {/* Sensitivity */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 11, color: "#666", fontWeight: 600 }}>GAIN</span>
+                  <span style={{ fontSize: 11, color: "#aaa", fontWeight: 600 }}>GAIN</span>
                   <input
                     type="range" min="0.3" max="3" step="0.1"
                     value={sensitivity}
@@ -1024,7 +1098,8 @@ export default function App() {
             {/* Mode tabs */}
             <div style={{ display: "flex", gap: 4 }}>
               {[
-                { key: "ai", label: "✍ AI Lyrics" },
+                { key: "search", label: "🔍 Poišči" },
+                { key: "ai", label: "✍ AI" },
                 { key: "paste", label: "📋 Prilepi" },
               ].map((tab) => (
                 <button key={tab.key} onClick={() => setLyricsMode(tab.key)} style={{
@@ -1039,7 +1114,7 @@ export default function App() {
             </div>
             <button onClick={() => setShowLyrics(false)} style={{
               background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 8, width: 32, height: 32, color: "#666", fontSize: 14,
+              borderRadius: 8, width: 32, height: 32, color: "#aaa", fontSize: 14,
               cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
             }}>✕</button>
           </div>
@@ -1047,7 +1122,7 @@ export default function App() {
           {lyricsMode === "paste" ? (
             /* Paste Mode */
             <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "16px 20px" }}>
-              <div style={{ fontSize: 11, color: "#666", marginBottom: 8, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              <div style={{ fontSize: 11, color: "#aaa", marginBottom: 8, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                 Prilepi lyrics pesmi
               </div>
               <textarea
@@ -1101,7 +1176,7 @@ export default function App() {
                     </div>
                   </div>
                   {lyrics.note && (
-                    <div style={{ fontSize: 10, color: "#555", marginTop: 8, fontStyle: "italic" }}>
+                    <div style={{ fontSize: 10, color: "#999", marginTop: 8, fontStyle: "italic" }}>
                       {lyrics.note}
                     </div>
                   )}
@@ -1118,7 +1193,7 @@ export default function App() {
                       { label: "High", value: currentMood.high, color: "#06d6a0" },
                     ].map((band) => (
                       <div key={band.label} style={{ flex: 1 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#444", marginBottom: 3 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#888", marginBottom: 3 }}>
                           <span>{band.label}</span>
                           <span style={{ color: band.color }}>{band.value}%</span>
                         </div>
@@ -1150,31 +1225,62 @@ export default function App() {
                     {line || " "}
                   </div>
                 )) : (
-                  <div style={{ textAlign: "center", color: "#555", paddingTop: 40 }}>
-                    <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.3 }}>✍</div>
-                    <div style={{ fontSize: 14 }}>Klikni "AI Lyrics" za generacijo</div>
-                    <div style={{ fontSize: 12, marginTop: 6, color: "#444" }}>
-                      AI bo prepoznal pesem iz imena datoteke
+                  <div style={{ textAlign: "center", color: "#999", paddingTop: 40 }}>
+                    <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.3 }}>
+                      {lyricsMode === "search" ? "🔍" : "✍"}
+                    </div>
+                    <div style={{ fontSize: 14 }}>
+                      {lyricsMode === "search"
+                        ? "Klikni 'Poišči' za iskanje lyrics"
+                        : "Klikni 'Generiraj' za AI lyrics"}
+                    </div>
+                    <div style={{ fontSize: 12, marginTop: 6, color: "#888" }}>
+                      {lyricsMode === "search"
+                        ? "Ime datoteke se uporabi za iskanje"
+                        : "AI generira lyrics na podlagi mooda glasbe"}
                     </div>
                   </div>
                 )}
               </div>
 
+              {/* Source attribution */}
+              {lyrics?.source && (
+                <div style={{ padding: "0 20px 8px", fontSize: 10, color: "#888" }}>
+                  Vir: {lyrics.source}
+                </div>
+              )}
+
               {/* Bottom Actions */}
               <div style={{ padding: "12px 20px", borderTop: `1px solid ${theme.accent}10`, display: "flex", gap: 8 }}>
-                <button
-                  onClick={handleGenerateLyrics}
-                  disabled={lyricsLoading}
-                  style={{
-                    flex: 1, background: `${theme.accent}15`,
-                    border: `1px solid ${theme.accent}33`, borderRadius: 10,
-                    padding: "10px", color: theme.accent, fontWeight: 700,
-                    fontSize: 12, cursor: lyricsLoading ? "wait" : "pointer",
-                    fontFamily: "'Syne', sans-serif",
-                  }}
-                >
-                  {lyricsLoading ? "⟳ Generiram..." : "↻ Generiraj lyrics"}
-                </button>
+                {lyricsMode === "search" ? (
+                  <button
+                    onClick={handleSearchLyrics}
+                    disabled={lyricsLoading || !fileName}
+                    style={{
+                      flex: 1, background: `${theme.accent}15`,
+                      border: `1px solid ${theme.accent}33`, borderRadius: 10,
+                      padding: "10px", color: !fileName ? "#555" : theme.accent, fontWeight: 700,
+                      fontSize: 12, cursor: lyricsLoading ? "wait" : !fileName ? "not-allowed" : "pointer",
+                      fontFamily: "'Syne', sans-serif",
+                    }}
+                  >
+                    {lyricsLoading ? "⟳ Iščem..." : "🔍 Poišči lyrics"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleGenerateLyrics}
+                    disabled={lyricsLoading}
+                    style={{
+                      flex: 1, background: `${theme.accent}15`,
+                      border: `1px solid ${theme.accent}33`, borderRadius: 10,
+                      padding: "10px", color: theme.accent, fontWeight: 700,
+                      fontSize: 12, cursor: lyricsLoading ? "wait" : "pointer",
+                      fontFamily: "'Syne', sans-serif",
+                    }}
+                  >
+                    {lyricsLoading ? "⟳ Generiram..." : "✍ AI Generiraj lyrics"}
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -1185,7 +1291,7 @@ export default function App() {
       {source && showControls && (
         <div style={{
           position: "fixed", bottom: 8, left: "50%", transform: "translateX(-50%)",
-          zIndex: 20, fontSize: 10, color: "#444", letterSpacing: "0.06em",
+          zIndex: 20, fontSize: 10, color: "#888", letterSpacing: "0.06em",
         }}>
           SOUNDWAVES v1.0 — Built with React + Web Audio API by Pengu
         </div>
