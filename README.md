@@ -1,6 +1,6 @@
-# 🎵 SoundWaves — Audio Visualizer + AI Lyrics
+# 🎵 SoundWaves — Audio Visualizer + Synced Lyrics
 
-Real-time audio visualizer with 4 visualization modes, 5 color themes, AI-powered lyrics generation, microphone input, and music file support. Built with React, Canvas API, Web Audio API, and Claude AI.
+Real-time audio visualizer with 4 visualization modes, 5 color themes, synced lyrics karaoke overlay, AI lyrics generation, and music file support. Built with React, Canvas API, Web Audio API, and Claude AI.
 
 ![React](https://img.shields.io/badge/React-18.2-61DAFB?logo=react&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-5.0-646CFF?logo=vite&logoColor=white)
@@ -9,16 +9,17 @@ Real-time audio visualizer with 4 visualization modes, 5 color themes, AI-powere
 
 ## ✨ Features
 
-- **4 Visualization Modes** — Bars, Circular, Waveform, Galaxy (particle system)
+- **4 Visualization Modes** — Bars (mirrored), Circular, Waveform, Galaxy (particle system)
 - **5 Color Themes** — Neon, Fire, Ocean, Aurora, Sakura
-- **AI Lyrics Generator** — Analyzes audio mood in real-time and generates matching song lyrics using Claude AI
-- **Live Mood Detection** — Real-time frequency analysis detecting mood, energy, and genre feel
-- **Microphone Input** — Real-time visualization of ambient sound
-- **Music File Support** — Upload any audio file (MP3, WAV, OGG, etc.)
+- **Synced Lyrics** — Fetches real song lyrics from lrclib.net with LRC timestamp sync
+- **Karaoke Overlay** — Full-screen lyrics display synced to the music in real-time
+- **AI Lyrics Generator** — Claude AI generates original lyrics based on audio mood analysis
+- **Paste Lyrics** — Manual lyrics input for any song
+- **Live Mood Detection** — Real-time frequency analysis (bass/mid/high) with mood classification
+- **Microphone Input** — Visualize ambient sound in real-time
+- **Music File Support** — Upload MP3, WAV, OGG, FLAC, or any audio format
 - **Gain Control** — Adjustable sensitivity slider
-- **60 FPS Canvas Rendering** — Smooth animations with device pixel ratio support
-- **Demo Mode** — Works without API key with pre-written lyrics for each mood
-- **Responsive** — Full-screen immersive experience on any device
+- **60 FPS Canvas Rendering** — Smooth animations with HiDPI support
 
 ## 🚀 Quick Start
 
@@ -26,12 +27,13 @@ Real-time audio visualizer with 4 visualization modes, 5 color themes, AI-powere
 git clone https://github.com/Penguh38/sound-waves.git
 cd sound-waves
 npm install
-
-# (Optional) Add API key for real AI lyrics generation
-cp .env.example .env
-# Edit .env and add your key from https://console.anthropic.com/
-
 npm run dev
+```
+
+For AI lyrics generation (optional):
+```bash
+cp .env.example .env
+# Add your Anthropic API key
 ```
 
 ## 🏗️ Tech Stack
@@ -39,55 +41,54 @@ npm run dev
 | Technology | Purpose |
 |---|---|
 | **React 18** | UI framework with hooks |
-| **Vite 5** | Build tool |
+| **Vite 5** | Build tool and dev server |
 | **Canvas API** | Hardware-accelerated 2D rendering at 60fps |
-| **Web Audio API** | Real-time audio analysis (FFT, frequency data, waveform) |
-| **Claude AI API** | AI-powered song lyrics generation based on audio mood |
-| **AnalyserNode** | Fast Fourier Transform for frequency decomposition |
+| **Web Audio API** | Real-time FFT frequency analysis |
+| **lrclib.net API** | Synced lyrics search (LRC format with timestamps) |
+| **Claude AI API** | AI-powered mood-based lyrics generation |
 | **Google Fonts** | Syne + Outfit typography |
 
 ## 🎨 Visualization Modes
 
 | Mode | Description |
 |---|---|
-| **Bars** | Classic frequency spectrum with rounded bars, reflections, and glow |
+| **Bars** | Mirrored frequency spectrum with logarithmic scaling and glow effects |
 | **Circular** | Radial frequency display with pulsing center and rotating bars |
 | **Waveform** | Oscilloscope-style wave with layered traces and gradient fill |
-| **Galaxy** | 300-particle system with physics, split by bass/mid/high frequency bands |
+| **Galaxy** | 300-particle system reacting to bass, mid, and high frequency bands |
 
-## 🤖 AI Lyrics Generator
+## 🎤 Lyrics System
 
-The lyrics feature works by:
-1. **Analyzing audio** — Web Audio API decomposes sound into bass, mid, and high frequency bands
-2. **Detecting mood** — Algorithm classifies the audio mood (intense, bright, dark, melancholic, warm, chill)
-3. **AI Generation** — Claude AI generates original song lyrics matching the detected mood, energy, and genre
-4. **Live display** — Lyrics panel shows alongside the visualization with real-time audio analysis bars
+Three ways to get lyrics:
 
-Mood detection uses frequency band analysis:
-- **High bass + high energy** → Intense (electronic/hip-hop)
-- **High treble + medium energy** → Bright (pop/dance)
-- **High bass + low energy** → Dark (ambient/trap)
-- **Low overall energy** → Melancholic (ballad/acoustic)
-- **Balanced mids** → Warm (R&B/soul)
+| Mode | How it works |
+|---|---|
+| **🔍 Search** | Searches lrclib.net using the filename. Returns synced lyrics (LRC) when available for real-time karaoke sync |
+| **✍ AI** | Claude AI analyzes the audio mood and generates original lyrics matching the energy and genre |
+| **📋 Paste** | Manually paste lyrics from Genius, AZLyrics, or any source |
+
+The karaoke overlay reads `audio.currentTime` and matches it to LRC timestamps for frame-accurate lyric sync. For best results, name files as `Artist - Song Title.mp3`.
 
 ## 📐 Architecture
 
 ```
 src/
 ├── main.jsx       # Entry point
-└── App.jsx        # Complete application
-    ├── AI         # Mood detection, Claude API integration, demo lyrics
-    ├── Themes     # 5 color themes with dynamic color functions
-    ├── Renderers  # 4 canvas-based visualization draw functions
-    ├── Audio      # Web Audio API setup (mic + file sources)
-    └── UI         # Controls overlay, lyrics panel, mood indicator
+└── App.jsx        # Single-file application
+    ├── LRC Parser     # Synced lyrics timestamp parser
+    ├── Lyrics Search  # lrclib.net API integration
+    ├── AI Lyrics      # Claude API + mood detection + demo fallback
+    ├── Themes         # 5 color themes with dynamic color functions
+    ├── Renderers      # 4 canvas-based visualization functions
+    ├── Audio Engine    # Web Audio API (mic + file sources)
+    └── UI             # Karaoke overlay, side panel, controls
 ```
 
 ## 🔑 Environment Variables
 
 | Variable | Required | Description |
 |---|---|---|
-| `VITE_ANTHROPIC_API_KEY` | No | Anthropic API key for AI lyrics. App runs in demo mode without it. |
+| `VITE_ANTHROPIC_API_KEY` | No | Anthropic API key for AI lyrics. App works fully without it — search and paste modes need no key. |
 
 ## 🌐 Deployment
 

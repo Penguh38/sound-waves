@@ -62,6 +62,22 @@ const DEMO_LYRICS = {
 };
 
 // ─── Lyrics Search (lrclib.net — free, no API key) ──────
+
+// Parse LRC format: [mm:ss.xx]text → [{time: seconds, text: "..."}]
+function parseLRC(lrc) {
+  if (!lrc) return null;
+  const lines = [];
+  for (const line of lrc.split("\n")) {
+    const match = line.match(/^\[(\d+):(\d+\.\d+)\]\s*(.*)$/);
+    if (match) {
+      const time = parseInt(match[1]) * 60 + parseFloat(match[2]);
+      const text = match[3].trim();
+      if (text) lines.push({ time, text });
+    }
+  }
+  return lines.length > 0 ? lines : null;
+}
+
 async function searchLyrics(songFileName) {
   const cleanName = songFileName
     ? songFileName.replace(/\.(mp3|wav|ogg|flac|m4a|aac|wma)$/i, "")
@@ -77,32 +93,29 @@ async function searchLyrics(songFileName) {
     const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(cleanName)}`);
     const data = await res.json();
 
+    const buildResult = (best) => ({
+      title: best.trackName || cleanName,
+      artist: best.artistName || "Unknown",
+      verses: best.plainLyrics || "Lyrics niso na voljo.",
+      syncedLines: parseLRC(best.syncedLyrics),
+      mood_emoji: "🎵",
+      source: "lrclib.net",
+    });
+
     if (data && data.length > 0) {
-      // Find best match (prefer ones with plain lyrics)
-      const best = data.find((d) => d.plainLyrics) || data[0];
-      return {
-        title: best.trackName || cleanName,
-        artist: best.artistName || "Unknown",
-        verses: best.plainLyrics || best.syncedLyrics || "Lyrics niso na voljo.",
-        mood_emoji: "🎵",
-        source: "lrclib.net",
-      };
+      // Prefer results with synced lyrics
+      const best = data.find((d) => d.syncedLyrics && d.plainLyrics) || data.find((d) => d.plainLyrics) || data[0];
+      return buildResult(best);
     }
 
-    // Try with shorter query (first few words)
+    // Try shorter query
     const shortName = cleanName.split(" ").slice(0, 3).join(" ");
     if (shortName !== cleanName) {
       const res2 = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(shortName)}`);
       const data2 = await res2.json();
       if (data2 && data2.length > 0) {
-        const best = data2.find((d) => d.plainLyrics) || data2[0];
-        return {
-          title: best.trackName || cleanName,
-          artist: best.artistName || "Unknown",
-          verses: best.plainLyrics || best.syncedLyrics || "Lyrics niso na voljo.",
-          mood_emoji: "🎵",
-          source: "lrclib.net",
-        };
+        const best = data2.find((d) => d.syncedLyrics && d.plainLyrics) || data2.find((d) => d.plainLyrics) || data2[0];
+        return buildResult(best);
       }
     }
 
@@ -704,20 +717,36 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isPlaying]);
 
-  // Karaoke auto-scroll
+  // Karaoke sync — uses synced timestamps or falls back to auto-scroll
   useEffect(() => {
     if (!showLyrics || !lyrics || lyricsView !== "overlay" || !isPlaying) {
       setKaraokePlaying(false);
       return;
     }
-    const lines = lyrics.verses.split("\n").filter((l) => l.trim() !== "");
-    if (lines.length === 0) return;
 
     setKaraokePlaying(true);
+
+    // If we have synced lyrics + audio element, use real timestamps
+    if (lyrics.syncedLines && audioElRef.current) {
+      const syncInterval = setInterval(() => {
+        const currentTime = audioElRef.current?.currentTime || 0;
+        const lines = lyrics.syncedLines;
+        let idx = 0;
+        for (let i = lines.length - 1; i >= 0; i--) {
+          if (currentTime >= lines[i].time) { idx = i; break; }
+        }
+        setKaraokeIndex(idx);
+      }, 100); // Check 10x per second for smooth sync
+
+      return () => clearInterval(syncInterval);
+    }
+
+    // Fallback: auto-scroll for mic input or non-synced lyrics
+    const lines = lyrics.verses.split("\n").filter((l) => l.trim() !== "");
+    if (lines.length === 0) return;
     setKaraokeIndex(0);
 
     const speed = currentMood?.energy === "high" ? 2500 : currentMood?.energy === "low" ? 4000 : 3200;
-
     karaokeRef.current = setInterval(() => {
       setKaraokeIndex((prev) => (prev + 1) % lines.length);
     }, speed);
@@ -1109,91 +1138,106 @@ export default function App() {
 
       {/* Karaoke Lyrics Overlay */}
       {showLyrics && lyrics && lyricsView === "overlay" && (() => {
-        const lines = lyrics.verses.split("\n").filter((l) => l.trim() !== "");
+        // Use synced lines if available, otherwise fall back to plain text
+        const useSynced = lyrics.syncedLines && lyrics.syncedLines.length > 0;
+        const lines = useSynced
+          ? lyrics.syncedLines.map((l) => l.text)
+          : lyrics.verses.split("\n").filter((l) => l.trim() !== "");
         if (lines.length === 0) return null;
-        const idx = karaokeIndex % lines.length;
+        const idx = Math.min(karaokeIndex, lines.length - 1);
 
         return (
           <div
-            onClick={() => setKaraokeIndex((prev) => (prev + 1) % lines.length)}
+            onClick={() => !useSynced && setKaraokeIndex((prev) => (prev + 1) % lines.length)}
             style={{
-              position: "fixed", bottom: 80, left: 0, right: 0,
-              zIndex: 40, pointerEvents: "auto", cursor: "pointer",
-              display: "flex", flexDirection: "column", alignItems: "center",
-              padding: "0 40px",
+              position: "fixed", inset: 0,
+              zIndex: 40, cursor: useSynced ? "default" : "pointer",
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center",
+              pointerEvents: "auto",
             }}
           >
             <style>{`
-              @keyframes lyricFadeIn { from{opacity:0;transform:translateY(20px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
-              @keyframes lyricFadeInSoft { from{opacity:0;transform:translateY(10px)} to{opacity:0.35;transform:translateY(0)} }
+              @keyframes lyricPop { from{opacity:0;transform:scale(0.9) translateY(15px)} to{opacity:1;transform:scale(1) translateY(0)} }
+              @keyframes lyricDim { from{opacity:0} to{opacity:0.25} }
             `}</style>
 
-            {/* Song info pill */}
+            {/* Song info pill - top */}
             <div style={{
+              position: "absolute", top: 60,
               display: "flex", alignItems: "center", gap: 8,
               background: "rgba(0,0,0,0.5)", backdropFilter: "blur(12px)",
-              padding: "5px 16px", borderRadius: 20,
+              padding: "6px 18px", borderRadius: 20,
               border: `1px solid ${theme.accent}22`,
-              marginBottom: 20,
             }}>
-              <span style={{ fontSize: 12 }}>{lyrics.mood_emoji}</span>
-              <span style={{ fontSize: 11, color: theme.accent, fontWeight: 600, fontFamily: "'Syne', sans-serif" }}>
+              <span style={{ fontSize: 13 }}>{lyrics.mood_emoji}</span>
+              <span style={{ fontSize: 12, color: theme.accent, fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>
                 {lyrics.title}
               </span>
               {lyrics.artist && lyrics.artist !== "Unknown" && lyrics.artist !== "Original" && (
-                <span style={{ fontSize: 11, color: "#888" }}>— {lyrics.artist}</span>
+                <span style={{ fontSize: 12, color: "#aaa" }}>— {lyrics.artist}</span>
+              )}
+              {useSynced && (
+                <span style={{ fontSize: 9, color: "#888", marginLeft: 4 }}>● SYNCED</span>
               )}
             </div>
 
-            {/* Previous line */}
-            {idx > 0 && (
-              <div key={`prev-${idx}`} style={{
-                fontSize: 18, color: "#fff", opacity: 0.2,
-                fontFamily: "'Outfit', sans-serif", fontWeight: 500,
-                textAlign: "center", marginBottom: 6,
-                textShadow: "0 2px 8px rgba(0,0,0,0.5)",
-                maxWidth: 700,
-              }}>
-                {lines[idx - 1]}
-              </div>
-            )}
-
-            {/* Current line */}
-            <div key={`current-${idx}`} style={{
-              fontSize: 28, color: "#fff", fontWeight: 700,
-              fontFamily: "'Outfit', sans-serif",
-              textAlign: "center",
-              textShadow: `0 0 30px ${theme.accent}66, 0 2px 10px rgba(0,0,0,0.6)`,
-              animation: "lyricFadeIn 0.5s cubic-bezier(0.34,1.56,0.64,1)",
-              maxWidth: 800, lineHeight: 1.4,
-              marginBottom: 6,
+            {/* Lyrics area - centered */}
+            <div style={{
+              display: "flex", flexDirection: "column", alignItems: "center",
+              gap: 8, maxWidth: "80vw", padding: "0 20px",
             }}>
-              {lines[idx]}
+              {/* Previous line */}
+              {idx > 0 && (
+                <div key={`p-${idx}`} style={{
+                  fontSize: "clamp(16px, 2.5vw, 22px)", color: "#fff", opacity: 0.15,
+                  fontFamily: "'Outfit', sans-serif", fontWeight: 500,
+                  textAlign: "center",
+                  textShadow: "0 2px 10px rgba(0,0,0,0.8)",
+                  animation: "lyricDim 0.3s ease",
+                }}>
+                  {lines[idx - 1]}
+                </div>
+              )}
+
+              {/* Current line — BIG */}
+              <div key={`c-${idx}`} style={{
+                fontSize: "clamp(28px, 5vw, 52px)",
+                color: "#fff", fontWeight: 800,
+                fontFamily: "'Outfit', sans-serif",
+                textAlign: "center",
+                textShadow: `0 0 40px ${theme.accent}55, 0 0 80px ${theme.accent}22, 0 4px 20px rgba(0,0,0,0.8)`,
+                animation: "lyricPop 0.4s cubic-bezier(0.34,1.56,0.64,1)",
+                lineHeight: 1.3,
+              }}>
+                {lines[idx]}
+              </div>
+
+              {/* Next line */}
+              {idx < lines.length - 1 && (
+                <div key={`n-${idx}`} style={{
+                  fontSize: "clamp(16px, 2.5vw, 22px)", color: "#fff", opacity: 0.15,
+                  fontFamily: "'Outfit', sans-serif", fontWeight: 500,
+                  textAlign: "center",
+                  textShadow: "0 2px 10px rgba(0,0,0,0.8)",
+                  animation: "lyricDim 0.3s ease",
+                }}>
+                  {lines[idx + 1]}
+                </div>
+              )}
             </div>
 
-            {/* Next line */}
-            {idx < lines.length - 1 && (
-              <div key={`next-${idx}`} style={{
-                fontSize: 18, color: "#fff", opacity: 0.2,
-                fontFamily: "'Outfit', sans-serif", fontWeight: 500,
-                textAlign: "center",
-                textShadow: "0 2px 8px rgba(0,0,0,0.5)",
-                animation: "lyricFadeInSoft 0.4s ease",
-                maxWidth: 700,
-              }}>
-                {lines[idx + 1]}
-              </div>
-            )}
-
-            {/* Progress dots */}
-            <div style={{ display: "flex", gap: 3, marginTop: 16 }}>
-              {lines.map((_, i) => (
-                <div key={i} style={{
-                  width: i === idx ? 16 : 4, height: 4, borderRadius: 2,
-                  background: i === idx ? theme.accent : i < idx ? `${theme.accent}55` : "rgba(255,255,255,0.1)",
-                  transition: "all 0.4s ease",
-                }} />
-              ))}
+            {/* Progress bar — bottom */}
+            <div style={{
+              position: "absolute", bottom: 70, left: "10%", right: "10%",
+              height: 3, borderRadius: 2, background: "rgba(255,255,255,0.08)",
+            }}>
+              <div style={{
+                height: "100%", borderRadius: 2, background: theme.accent,
+                width: `${((idx + 1) / lines.length) * 100}%`,
+                transition: "width 0.3s ease",
+                boxShadow: `0 0 10px ${theme.accent}55`,
+              }} />
             </div>
           </div>
         );
