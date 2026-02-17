@@ -563,6 +563,10 @@ export default function App() {
   const [currentMood, setCurrentMood] = useState(null);
   const [customLyrics, setCustomLyrics] = useState("");
   const [lyricsMode, setLyricsMode] = useState("search"); // "search" | "ai" | "paste"
+  const [lyricsView, setLyricsView] = useState("overlay"); // "overlay" | "panel"
+  const [karaokeIndex, setKaraokeIndex] = useState(0);
+  const [karaokePlaying, setKaraokePlaying] = useState(false);
+  const karaokeRef = useRef(null);
 
   const canvasRef = useRef(null);
   const animRef = useRef(null);
@@ -699,6 +703,27 @@ export default function App() {
     }, 500);
     return () => clearInterval(interval);
   }, [isPlaying]);
+
+  // Karaoke auto-scroll
+  useEffect(() => {
+    if (!showLyrics || !lyrics || lyricsView !== "overlay" || !isPlaying) {
+      setKaraokePlaying(false);
+      return;
+    }
+    const lines = lyrics.verses.split("\n").filter((l) => l.trim() !== "");
+    if (lines.length === 0) return;
+
+    setKaraokePlaying(true);
+    setKaraokeIndex(0);
+
+    const speed = currentMood?.energy === "high" ? 2500 : currentMood?.energy === "low" ? 4000 : 3200;
+
+    karaokeRef.current = setInterval(() => {
+      setKaraokeIndex((prev) => (prev + 1) % lines.length);
+    }, speed);
+
+    return () => clearInterval(karaokeRef.current);
+  }, [showLyrics, lyrics, lyricsView, isPlaying]);
 
   // Animation loop
   useEffect(() => {
@@ -841,7 +866,7 @@ export default function App() {
             )}
             {source && isPlaying && (
               <button
-                onClick={() => { setShowLyrics(true); setLyricsMode("search"); handleSearchLyrics(); }}
+                onClick={() => { setShowLyrics(true); setLyricsView("overlay"); setLyricsMode("search"); handleSearchLyrics(); }}
                 disabled={lyricsLoading || !fileName}
                 title={!fileName ? "Naloži glasbo za iskanje lyrics" : "Poišči lyrics pesmi"}
                 style={{
@@ -857,14 +882,19 @@ export default function App() {
               </button>
             )}
             {(lyrics || source) && (
-              <button onClick={() => setShowLyrics(!showLyrics)} style={{
+              <button onClick={() => {
+                if (!showLyrics) { setShowLyrics(true); setLyricsView("overlay"); }
+                else if (lyricsView === "overlay") { setLyricsView("panel"); }
+                else { setShowLyrics(false); setLyricsView("overlay"); }
+              }} title={!showLyrics ? "Prikaži lyrics" : lyricsView === "overlay" ? "Odpri panel" : "Skrij lyrics"} style={{
                 background: showLyrics ? `${theme.accent}22` : "rgba(0,0,0,0.4)",
                 backdropFilter: "blur(12px)",
                 border: `1px solid ${showLyrics ? theme.accent : "rgba(255,255,255,0.06)"}`,
                 borderRadius: 10, width: 36, height: 36,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                color: showLyrics ? theme.accent : "#999", fontSize: 16, cursor: "pointer",
-              }}>♫</button>
+                color: showLyrics ? theme.accent : "#999", fontSize: 14, cursor: "pointer",
+                fontFamily: "'Syne', sans-serif", fontWeight: 700,
+              }}>{!showLyrics ? "♫" : lyricsView === "overlay" ? "☰" : "✕"}</button>
             )}
             {source && (
               <div style={{
@@ -1077,8 +1107,100 @@ export default function App() {
         )}
       </div>
 
-      {/* Lyrics Panel */}
-      {showLyrics && (
+      {/* Karaoke Lyrics Overlay */}
+      {showLyrics && lyrics && lyricsView === "overlay" && (() => {
+        const lines = lyrics.verses.split("\n").filter((l) => l.trim() !== "");
+        if (lines.length === 0) return null;
+        const idx = karaokeIndex % lines.length;
+
+        return (
+          <div
+            onClick={() => setKaraokeIndex((prev) => (prev + 1) % lines.length)}
+            style={{
+              position: "fixed", bottom: 80, left: 0, right: 0,
+              zIndex: 40, pointerEvents: "auto", cursor: "pointer",
+              display: "flex", flexDirection: "column", alignItems: "center",
+              padding: "0 40px",
+            }}
+          >
+            <style>{`
+              @keyframes lyricFadeIn { from{opacity:0;transform:translateY(20px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
+              @keyframes lyricFadeInSoft { from{opacity:0;transform:translateY(10px)} to{opacity:0.35;transform:translateY(0)} }
+            `}</style>
+
+            {/* Song info pill */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              background: "rgba(0,0,0,0.5)", backdropFilter: "blur(12px)",
+              padding: "5px 16px", borderRadius: 20,
+              border: `1px solid ${theme.accent}22`,
+              marginBottom: 20,
+            }}>
+              <span style={{ fontSize: 12 }}>{lyrics.mood_emoji}</span>
+              <span style={{ fontSize: 11, color: theme.accent, fontWeight: 600, fontFamily: "'Syne', sans-serif" }}>
+                {lyrics.title}
+              </span>
+              {lyrics.artist && lyrics.artist !== "Unknown" && lyrics.artist !== "Original" && (
+                <span style={{ fontSize: 11, color: "#888" }}>— {lyrics.artist}</span>
+              )}
+            </div>
+
+            {/* Previous line */}
+            {idx > 0 && (
+              <div key={`prev-${idx}`} style={{
+                fontSize: 18, color: "#fff", opacity: 0.2,
+                fontFamily: "'Outfit', sans-serif", fontWeight: 500,
+                textAlign: "center", marginBottom: 6,
+                textShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                maxWidth: 700,
+              }}>
+                {lines[idx - 1]}
+              </div>
+            )}
+
+            {/* Current line */}
+            <div key={`current-${idx}`} style={{
+              fontSize: 28, color: "#fff", fontWeight: 700,
+              fontFamily: "'Outfit', sans-serif",
+              textAlign: "center",
+              textShadow: `0 0 30px ${theme.accent}66, 0 2px 10px rgba(0,0,0,0.6)`,
+              animation: "lyricFadeIn 0.5s cubic-bezier(0.34,1.56,0.64,1)",
+              maxWidth: 800, lineHeight: 1.4,
+              marginBottom: 6,
+            }}>
+              {lines[idx]}
+            </div>
+
+            {/* Next line */}
+            {idx < lines.length - 1 && (
+              <div key={`next-${idx}`} style={{
+                fontSize: 18, color: "#fff", opacity: 0.2,
+                fontFamily: "'Outfit', sans-serif", fontWeight: 500,
+                textAlign: "center",
+                textShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                animation: "lyricFadeInSoft 0.4s ease",
+                maxWidth: 700,
+              }}>
+                {lines[idx + 1]}
+              </div>
+            )}
+
+            {/* Progress dots */}
+            <div style={{ display: "flex", gap: 3, marginTop: 16 }}>
+              {lines.map((_, i) => (
+                <div key={i} style={{
+                  width: i === idx ? 16 : 4, height: 4, borderRadius: 2,
+                  background: i === idx ? theme.accent : i < idx ? `${theme.accent}55` : "rgba(255,255,255,0.1)",
+                  transition: "all 0.4s ease",
+                }} />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Lyrics Side Panel */}
+      {showLyrics && lyricsView === "panel" && (
         <div style={{
           position: "fixed", top: 0, right: 0, bottom: 0,
           width: 380, maxWidth: "90vw", zIndex: 50,
