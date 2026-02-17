@@ -402,62 +402,78 @@ function drawCircular(ctx, w, h, freq, wave, theme, time) {
   ctx.globalAlpha = 1;
 }
 
-function drawWaveform(ctx, w, h, freq, wave, theme, time) {
+function drawRipple(ctx, w, h, freq, wave, theme, time) {
+  const cx = w / 2;
   const cy = h / 2;
-  const sliceW = w / wave.length;
+  const maxR = Math.min(w, h) * 0.45;
+  const ringCount = 20;
 
-  // Draw multiple layered waves
-  for (let layer = 0; layer < 3; layer++) {
+  // Get energy bands
+  const bass = freq.slice(0, 10).reduce((a, b) => a + b, 0) / 10 / 255;
+  const mid = freq.slice(10, 40).reduce((a, b) => a + b, 0) / 30 / 255;
+  const high = freq.slice(40, 80).reduce((a, b) => a + b, 0) / 40 / 255;
+
+  // Background pulse
+  const pulseR = maxR * 0.3 * (0.5 + bass * 0.5);
+  const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, pulseR);
+  bgGrad.addColorStop(0, theme.accent + "15");
+  bgGrad.addColorStop(1, "transparent");
+  ctx.fillStyle = bgGrad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, pulseR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw concentric rings
+  for (let i = 0; i < ringCount; i++) {
+    const t = i / ringCount;
+    const baseR = t * maxR + 20;
+
+    // Each ring gets a frequency value via log mapping
+    const logIdx = Math.round(Math.exp(Math.log(1) + t * (Math.log(freq.length - 1) - Math.log(1))));
+    const val = Math.pow(freq[Math.min(logIdx, freq.length - 1)] / 255, 0.8);
+
+    // Ring wobbles based on frequency
+    const wobble = val * 15;
+    const speed = time * 0.0005 * (1 + t * 0.5);
+
     ctx.beginPath();
-    const offset = layer * 0.15;
-
-    for (let i = 0; i < wave.length; i++) {
-      const v = (wave[i] / 128.0 - 1);
-      const amp = layer === 0 ? 1 : layer === 1 ? 0.6 : 0.3;
-      const y = cy + v * (h * 0.4) * amp;
-      const x = i * sliceW;
-
-      if (i === 0) ctx.moveTo(x, y);
+    const segments = 120;
+    for (let j = 0; j <= segments; j++) {
+      const angle = (j / segments) * Math.PI * 2;
+      // Add sine wobble that varies per ring
+      const noise = Math.sin(angle * 3 + speed + i * 0.7) * wobble
+                  + Math.sin(angle * 5 - speed * 1.3 + i * 1.2) * wobble * 0.5;
+      const r = baseR + noise;
+      const x = cx + Math.cos(angle) * r;
+      const y = cy + Math.sin(angle) * r;
+      if (j === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
+    ctx.closePath();
 
-    ctx.strokeStyle = theme.colors(layer * 30, 90);
-    ctx.lineWidth = layer === 0 ? 2.5 : layer === 1 ? 1.5 : 1;
-    ctx.globalAlpha = layer === 0 ? 1 : layer === 1 ? 0.4 : 0.15;
+    const color = theme.colors(i, ringCount);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5 + val * 2;
+    ctx.globalAlpha = 0.2 + val * 0.6;
 
-    if (layer === 0) {
-      ctx.shadowColor = theme.accent;
-      ctx.shadowBlur = 15;
+    if (val > 0.4) {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = val * 20;
     }
     ctx.stroke();
     ctx.shadowBlur = 0;
   }
   ctx.globalAlpha = 1;
 
-  // Fill under main wave
+  // Center energy circle
+  const cR = 15 + bass * 25;
+  const cGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cR);
+  cGrad.addColorStop(0, theme.accent);
+  cGrad.addColorStop(1, theme.accent + "00");
+  ctx.fillStyle = cGrad;
   ctx.beginPath();
-  ctx.moveTo(0, cy);
-  for (let i = 0; i < wave.length; i++) {
-    const v = (wave[i] / 128.0 - 1);
-    const y = cy + v * (h * 0.4);
-    ctx.lineTo(i * sliceW, y);
-  }
-  ctx.lineTo(w, cy);
-  ctx.closePath();
-  const grad = ctx.createLinearGradient(0, cy - h * 0.4, 0, cy + h * 0.4);
-  grad.addColorStop(0, theme.accent + "15");
-  grad.addColorStop(0.5, theme.accent + "08");
-  grad.addColorStop(1, theme.accent + "15");
-  ctx.fillStyle = grad;
+  ctx.arc(cx, cy, cR, 0, Math.PI * 2);
   ctx.fill();
-
-  // Center line
-  ctx.beginPath();
-  ctx.moveTo(0, cy);
-  ctx.lineTo(w, cy);
-  ctx.strokeStyle = "rgba(255,255,255,0.04)";
-  ctx.lineWidth = 1;
-  ctx.stroke();
 }
 
 function drawGalaxy(ctx, w, h, freq, wave, theme, time, particlesRef) {
@@ -556,7 +572,7 @@ function drawGalaxy(ctx, w, h, freq, wave, theme, time, particlesRef) {
 const MODES = [
   { key: "bars", name: "Bars", icon: "▐▐▐", draw: drawBars },
   { key: "circular", name: "Circular", icon: "◎", draw: drawCircular },
-  { key: "waveform", name: "Wave", icon: "∿", draw: drawWaveform },
+  { key: "ripple", name: "Ripple", icon: "◎", draw: drawRipple },
   { key: "galaxy", name: "Galaxy", icon: "✦", draw: drawGalaxy },
 ];
 
@@ -863,7 +879,7 @@ export default function App() {
       />
 
       {/* UI Overlay */}
-      <div style={{ position: "fixed", inset: 0, zIndex: 10, pointerEvents: "none" }}>
+      <div style={{ position: "fixed", inset: 0, zIndex: 45, pointerEvents: "none" }}>
         {/* Top bar */}
         <div style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -1150,7 +1166,7 @@ export default function App() {
           <div
             onClick={() => !useSynced && setKaraokeIndex((prev) => (prev + 1) % lines.length)}
             style={{
-              position: "fixed", inset: 0,
+              position: "fixed", top: 60, left: 0, right: 0, bottom: 180,
               zIndex: 40, cursor: useSynced ? "default" : "pointer",
               display: "flex", flexDirection: "column",
               alignItems: "center", justifyContent: "center",
@@ -1162,13 +1178,13 @@ export default function App() {
               @keyframes lyricDim { from{opacity:0} to{opacity:0.25} }
             `}</style>
 
-            {/* Song info pill - top */}
+            {/* Song info pill */}
             <div style={{
-              position: "absolute", top: 60,
               display: "flex", alignItems: "center", gap: 8,
               background: "rgba(0,0,0,0.5)", backdropFilter: "blur(12px)",
               padding: "6px 18px", borderRadius: 20,
               border: `1px solid ${theme.accent}22`,
+              marginBottom: 20,
             }}>
               <span style={{ fontSize: 13 }}>{lyrics.mood_emoji}</span>
               <span style={{ fontSize: 12, color: theme.accent, fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>
@@ -1227,9 +1243,9 @@ export default function App() {
               )}
             </div>
 
-            {/* Progress bar — bottom */}
+            {/* Progress bar */}
             <div style={{
-              position: "absolute", bottom: 70, left: "10%", right: "10%",
+              width: "60%", marginTop: 24,
               height: 3, borderRadius: 2, background: "rgba(255,255,255,0.08)",
             }}>
               <div style={{
